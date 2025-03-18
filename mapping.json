@@ -1,0 +1,22 @@
+{
+    "date_last_evaluated": ".reportState.reportDate",
+    ".variant.assembly": "ref_genome",
+    ".geneName": "gene_symbol",
+    ".variant.chr": "chromosome",
+    ".variant.start": "start",
+    "refalt": {
+        ".variant.refAlt": [
+            "reference_allele",
+            "alternate_allele"
+        ]
+    },
+    "hgvsc": [
+        ".transcript.transcriptName",
+        ".transcript.cDot"
+    ],
+    ".acmgScoring.evidenceList[]": "comment_on_classification",
+    ".acmgScoring.classification": "germline_classification",
+    ".acmgScoring.interpretedSequenceOntology": "consequence",
+    "code": ".acmgScoring.criteria | map(.code, .strength)",
+    "reported": ".reportSection"
+}
