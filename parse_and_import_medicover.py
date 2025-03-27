@@ -46,7 +46,8 @@ def main(
     xlsx,
     panelapp_file,
     config_file,
-    mapping_file,
+    mapping_json_keys_file,
+    mapping_rescued_panels,
     write,
     db_import,
     dump,
@@ -60,9 +61,14 @@ def main(
         db.insert_in_db(session, inca_table, dump_data)
         exit()
 
-    mapping = utils.parse_json(mapping_file)
+    mapping_json_keys = utils.parse_json(mapping_json_keys_file)
     mapping_panels = utils.parse_xlsx(xlsx)
-    panelapp_dump = utils.parse_tsv(panelapp_file)
+    panelapp_dump = utils.parse_tsv(
+        panelapp_file, "id", "name", "relevant_disorders"
+    )
+    mapping_rescued_panels = utils.parse_tsv(
+        mapping_rescued_panels, "raw_panel", "new_panel", "r_code"
+    )
 
     medicover_data = mapping_panels[["CUH sample number", "Panels"]].to_dicts()
 
@@ -74,7 +80,7 @@ def main(
     # insert a none column called r_code
     # loop through the panels
     for panel_data in panelapp_dump:
-        relevant_disorders = panel_data["relevant_disorders"]
+        relevant_disorders = eval(panel_data["relevant_disorders"])
         panel_name = panel_data["name"]
         r_code = None
 
@@ -89,9 +95,33 @@ def main(
             r_code_info = r_code
 
         for sample, panels in sample_as_key.items():
-            matched = False
+            rescued = False
+
+            # use the mapping to rescue some panels
+            for data in mapping_rescued_panels:
+                raw_panel_data_to_match_rescue_mapping = ", ".join(
+                    [ele.lstrip("_") for ele in panels["Panels"]]
+                )
+
+                if raw_panel_data_to_match_rescue_mapping == data["raw_panel"]:
+                    if data["r_code"]:
+                        sample_as_key[sample].setdefault("r_code", set()).add(
+                            f"R{data['r_code']}"
+                        )
+
+                    sample_as_key[sample].setdefault("panel_name", set()).add(
+                        data["new_panel"]
+                    )
+
+                    rescued = True
+                    break
+
+            if rescued:
+                continue
 
             for panel in panels["Panels"]:
+                matched = False
+
                 if panel_name in panel:
                     matched = True
                     break
@@ -131,9 +161,10 @@ def main(
             for variant_data in evaluation["variants"]:
                 parsed_variant_data = {}
 
-                for key, value in mapping.items():
-                    # hgvsc is not directly available to parse from the medicover
-                    # data
+                # look for data in the report json
+                for key, value in mapping_json_keys.items():
+                    # hgvsc is not directly available to parse from the
+                    # medicover data
                     # it can be obtained by combining 2 fields
                     if key == "hgvsc":
                         hgvsc = []
@@ -187,6 +218,7 @@ def main(
                         else:
                             parsed_variant_data[key] = None
 
+                    # handle the ACGS codes
                     elif key == "code":
                         jq_query = value
                         jq_output = (
@@ -248,9 +280,17 @@ def main(
                         ):
                             formatted_output = "GRCh37.p13"
 
-                        formatted_output = " ".join(
-                            formatted_output.lower().capitalize().split("_")
-                        )
+                        # neeed to keep the gene symbol uppercase
+                        if value == "gene_symbol":
+                            formatted_output = " ".join(
+                                formatted_output.split("_")
+                            )
+                        else:
+                            formatted_output = " ".join(
+                                formatted_output.lower()
+                                .capitalize()
+                                .split("_")
+                            )
 
                         parsed_variant_data[value] = formatted_output
 
@@ -335,11 +375,19 @@ if __name__ == "__main__":
         help="Config JSON file containing the credential info for the AWS db",
     )
     parser.add_argument(
-        "-m",
-        "--mapping",
+        "-mj",
+        "--mapping_json",
         help=(
             "JSON file containing the mapping between fields in the "
             "Medicover report and the db",
+        ),
+    )
+    parser.add_argument(
+        "-mp",
+        "--mapping_panels",
+        help=(
+            "TSV file containing a mapping between the medicover panels and "
+            "panelapp panels",
         ),
     )
     parser.add_argument(
@@ -368,7 +416,8 @@ if __name__ == "__main__":
         args.xlsx,
         args.panelapp_dump,
         args.config,
-        args.mapping,
+        args.mapping_json,
+        args.mapping_panels,
         args.write,
         args.db,
         args.dump,
