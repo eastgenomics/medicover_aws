@@ -1,3 +1,4 @@
+import itertools
 import json
 
 import polars as pl
@@ -29,19 +30,18 @@ def parse_xlsx(xlsx_file: str):
     return df
 
 
-def parse_tsv(tsv_file: str):
+def parse_tsv(tsv_file: str, *keys):
     data = []
 
     with open(tsv_file) as f:
         for line in f:
-            panel_id, name, relevant_disorders = line.strip().split("\t")
-            data.append(
-                {
-                    "id": panel_id,
-                    "name": name,
-                    "relevant_disorders": eval(relevant_disorders),
-                }
-            )
+            row = line.strip().split("\t")
+            sub_dict = {}
+
+            for key, value in itertools.zip_longest(keys, row):
+                sub_dict[key] = value
+
+            data.append(sub_dict)
 
     return data
 
