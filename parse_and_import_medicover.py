@@ -81,22 +81,21 @@ def main(
     for panel_data in panelapp_dump:
         relevant_disorders = eval(panel_data["relevant_disorders"])
         panel_name = panel_data["name"]
-        r_code = None
+        r_code = r_code_info = None
 
         # find the r code
         for disorder in relevant_disorders:
             if re.search(r"R[0-9]+", disorder):
                 r_code = disorder
 
-        if not r_code:
-            r_code_info = None
-        else:
+        if r_code:
             r_code_info = r_code
 
         for sample, panels in sample_as_key.items():
             rescued = False
 
-            # use the mapping to rescue some panels
+            # use the mapping to rescue some panels that aren't automatically
+            # attributed a r-code using the panelapp dump
             for data in mapping_rescued_panels:
                 raw_panel_data_to_match_rescue_mapping = ", ".join(
                     [ele.lstrip("_") for ele in panels["Panels"]]
