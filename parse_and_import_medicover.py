@@ -347,7 +347,7 @@ def main(
     correct_data_to_import = utils.add_missing_keys(data_to_import)
 
     if write:
-        with open("data.json", "w") as f:
+        with open("json_dump_ready_for_import.json", "w") as f:
             json.dump(correct_data_to_import, f, indent=2)
 
     if db_import:
