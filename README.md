@@ -5,7 +5,7 @@ Script to import medicover data into the INCA database for final import to Clinv
 ## Files
 
 - Medisend_Manifest excel file obtained from Wook
-- Panelapp dump for the signedoff version of the panels (obtained using the Panelapp package in pypi)
+- Panelapp dump for the signedoff version of the panels (obtained using the Panelapp package in pypi) -> tsv with panel_id, panel name, relevant_disorders
 - Mapping used to map panels that couldn't be assigned r-codes. Manually created to handle ~200 cases where the panel was not suitable for Clinvar
 
 ## How to run
