@@ -24,13 +24,39 @@ def parse_json(json_file: str):
     return data
 
 
-def parse_xlsx(xlsx_file: str):
+def parse_xlsx(xlsx_file: str) -> pl.DataFrame:
+    """Parse excel file
+
+    Parameters
+    ----------
+    xlsx_file : str
+        Path to the excel file
+
+    Returns
+    -------
+    pl.DataFrame
+        Dataframe that resulted in parsing
+    """
+
     df = pl.read_excel(xlsx_file)
     df = df.with_columns(Panels=pl.col("Panels").str.split(";"))
     return df
 
 
-def parse_tsv(tsv_file: str, *keys):
+def parse_tsv(tsv_file: str, *keys) -> list:
+    """Parse TSV file
+
+    Parameters
+    ----------
+    tsv_file : str
+        Path to the file
+
+    Returns
+    -------
+    list
+        List of dicts for the TSV file
+    """
+
     data = []
 
     with open(tsv_file) as f:
