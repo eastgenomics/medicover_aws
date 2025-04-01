@@ -14,7 +14,6 @@ ACGS_CODES = [
     "PVS1",
     "PS1",
     "PS2",
-    "PM6",
     "PS3",
     "PS4",
     "PM1",
