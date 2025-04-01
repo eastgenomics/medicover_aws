@@ -1,6 +1,6 @@
 # medicover_aws
 
-Script to import medicover data into the INCA database for final import to Clinvar
+Script to import medicover data into the INCA database for final import to Clinvar: https://cuhbioinformatics.atlassian.net/browse/DI-1456
 
 ## Files
 
