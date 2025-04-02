@@ -81,15 +81,15 @@ def main(
     for panel_data in panelapp_dump:
         relevant_disorders = eval(panel_data["relevant_disorders"])
         panel_name = panel_data["name"]
-        r_code = r_code_info = None
+        r_code = r_code_info = []
 
         # find the r code
         for disorder in relevant_disorders:
             if re.search(r"R[0-9]+", disorder):
-                r_code = disorder
+                r_code.append(disorder)
 
         if r_code:
-            r_code_info = r_code
+            r_code_info = ", ".join(r_code)
 
         for sample, panels in sample_as_key.items():
             rescued = False
