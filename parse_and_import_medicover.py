@@ -323,11 +323,13 @@ def main(
                             ]
                         )
 
-                        if r_codes:
-                            parsed_variant_data["r_code"] = ", ".join(r_codes)
+                        if gm_number_data.get("panel_name"):
                             parsed_variant_data["preferred_condition_name"] = (
                                 ", ".join(gm_number_data["panel_name"])
                             )
+
+                        if r_codes:
+                            parsed_variant_data["r_code"] = ", ".join(r_codes)
 
                         parsed_variant_data["panel"] = panels
 
