@@ -278,8 +278,21 @@ def main(
                         ):
                             formatted_output = "GRCh37.p13"
 
-                        # neeed to keep the gene symbol uppercase
-                        if value == "gene_symbol":
+                        # rescue gene symbol when geneName field doesn't exist
+                        if (
+                            formatted_output == "None"
+                            and value == "gene_symbol"
+                        ):
+                            jq_output = (
+                                jq.compile(".acmgScoring.interpretedGene")
+                                .input_value(variant_data)
+                                .all()
+                            )
+
+                            formatted_output = " ".join(jq_output)
+
+                        # need to keep the gene symbol uppercase
+                        elif value == "gene_symbol":
                             formatted_output = " ".join(
                                 formatted_output.split("_")
                             )
