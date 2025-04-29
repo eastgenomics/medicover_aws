@@ -232,6 +232,10 @@ def main(
                                 strength = " ".join(
                                     strength.lower().capitalize().split("_")
                                 )
+
+                                if strength == "Standalone":
+                                    strength = "Stand-alone"
+
                                 reformatted_code = code.split("_")[0]
 
                                 if reformatted_code.upper() in ACGS_CODES:
