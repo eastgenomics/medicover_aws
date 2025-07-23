@@ -116,7 +116,7 @@ def add_missing_keys(data):
         for key in all_keys:
             # if the key is not present in the given dict, add it
             if key not in data_dict:
-                data_dict[key] = "[null]"
+                data_dict[key] = None
 
         new_data.append(data_dict)
 
