@@ -234,7 +234,7 @@ def main(
                                 )
 
                                 if strength == "Standalone":
-                                    strength = "Stand-alone"
+                                    strength = "Stand-Alone"
 
                                 reformatted_code = code.split("_")[0]
 
