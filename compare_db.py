@@ -6,7 +6,6 @@ from medicover_aws import db, utils
 
 
 col_to_check = [
-    "prefered_condition_name",
     "germline_classification",
     "collection_method",
     "allele_origin",
@@ -64,8 +63,14 @@ def main(config_dev, config_prod):
 
     for col in col_to_check:
         print(col)
-        print("dev", data["dev"][col])
-        print("prod", data["prod"][col])
+        print(
+            "dev",
+            sorted([str(value) for ele in data["dev"][col] for value in ele]),
+        )
+        print(
+            "prod",
+            sorted([str(value) for ele in data["prod"][col] for value in ele]),
+        )
 
 
 if __name__ == "__main__":
