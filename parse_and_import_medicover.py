@@ -265,6 +265,21 @@ def main(
                                 output = "no"
 
                             parsed_variant_data["reported"] = output
+                    elif key == ".acmgScoring.interpretedSequenceOntology":
+                        jq_query = key
+                        jq_output = (
+                            jq.compile(jq_query)
+                            .input_value(variant_data)
+                            .all()
+                        )
+
+                        if len(jq_output) == 1:
+                            output = jq_output[0]
+                        else:
+                            output = "&".join(jq_output)
+
+                        parsed_variant_data[value] = output
+
                     else:
                         jq_query = key
 
