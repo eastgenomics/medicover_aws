@@ -41,16 +41,40 @@ ACGS_CODES = [
 
 
 def main(
-    reports,
-    xlsx,
-    panelapp_file,
-    config_file,
-    mapping_json_keys_file,
-    mapping_rescued_panels,
-    write,
-    db_import,
-    dump,
+    reports: list,
+    xlsx: str,
+    panelapp_file: str,
+    config_file: str,
+    mapping_json_keys_file: str,
+    mapping_rescued_panels: str,
+    write: bool,
+    db_import: bool,
+    dump: str = None,
 ):
+    """Process Medicover reports and import data into the database.
+
+    Parameters
+    ----------
+    reports : list
+        List of paths to Medicover JSON report files
+    xlsx : str
+        Path to Excel file containing mapping from GM numbers to panels
+    panelapp_file : str
+        Path to Panelapp dump file
+    config_file : str
+        Path to config JSON file with database credentials
+    mapping_json_keys_file : str
+        Path to JSON file with field mappings
+    mapping_rescued_panels : str
+        Path to TSV file with mapping for rescued panels
+    write : bool
+        Whether to write results to a JSON file
+    db_import : bool
+        Whether to import results into the database
+    dump : str, optional
+        Path to previously processed data dump to bypass processing
+    """
+
     db_creds = utils.parse_json(config_file)
     session, meta = db.connect_to_db(db_creds)
     inca_table = meta.tables["testdirectory.inca"]
@@ -81,7 +105,8 @@ def main(
     for panel_data in panelapp_dump:
         relevant_disorders = eval(panel_data["relevant_disorders"])
         panel_name = panel_data["name"]
-        r_code = r_code_info = []
+        r_code = []
+        r_code_info = []
 
         # find the r code
         for disorder in relevant_disorders:
@@ -194,7 +219,12 @@ def main(
                             .input_value(variant_data)
                             .first()
                         )
-                        ref, alt = jq_output.split("/")
+
+                        if "/" in jq_output:
+                            ref, alt = jq_output.split("/")
+                        else:
+                            ref = None
+                            alt = None
 
                         parsed_variant_data[ref_key] = ref
                         parsed_variant_data[alt_key] = alt
