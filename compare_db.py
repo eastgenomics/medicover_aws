@@ -63,13 +63,23 @@ def main(config_dev, config_prod):
 
     for col in col_to_check:
         print(col)
-        print(
-            "dev",
-            sorted([str(value) for ele in data["dev"][col] for value in ele]),
+        dev_values = set(
+            sorted([str(value) for ele in data["dev"][col] for value in ele])
+        )
+        prod_values = set(
+            sorted([str(value) for ele in data["prod"][col] for value in ele])
         )
         print(
-            "prod",
-            sorted([str(value) for ele in data["prod"][col] for value in ele]),
+            "common values",
+            sorted(list(dev_values.intersection(prod_values))),
+        )
+        print(
+            "dev unique values",
+            sorted(list(dev_values.difference(prod_values))),
+        )
+        print(
+            "prod unique values",
+            sorted(list(prod_values.difference(dev_values))),
         )
 
 
