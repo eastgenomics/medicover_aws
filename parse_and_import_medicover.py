@@ -230,7 +230,12 @@ def main(
                                 zip(criteria, criteria[1:])
                             )[::2]:
                                 strength = " ".join(
-                                    strength.lower().capitalize().split("_")
+                                    [
+                                        ele.capitalize()
+                                        for ele in strength.lower()
+                                        .capitalize()
+                                        .split("_")
+                                    ]
                                 )
 
                                 if strength == "Standalone":
@@ -283,7 +288,7 @@ def main(
                             formatted_output = "GRCh37.p13"
 
                         # rescue gene symbol when geneName field doesn't exist
-                        if (
+                        elif (
                             formatted_output == "None"
                             and value == "gene_symbol"
                         ):
@@ -306,6 +311,9 @@ def main(
                                 .capitalize()
                                 .split("_")
                             )
+
+                        if formatted_output == "None":
+                            formatted_output = None
 
                         parsed_variant_data[value] = formatted_output
 
@@ -357,7 +365,6 @@ def main(
                 parsed_variant_data["affected_status"] = "yes"
                 parsed_variant_data["interpreted"] = "yes"
                 parsed_variant_data["probeset_id"] = "Medicover TWE"
-                parsed_variant_data["report_evaluation"] = report_evaluation
 
                 data_to_import.append(parsed_variant_data)
 
