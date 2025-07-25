@@ -163,6 +163,7 @@ def main(
                 )
 
     data_to_import = []
+    skipped_reports = 0
 
     nb_reports = len(reports)
 
@@ -171,6 +172,7 @@ def main(
 
         if jq.compile("keys").input_value(report_data).all() != [[0, 1, 2]]:
             print(f"Skipping {report} as it doesn't have any data")
+            skipped_reports += 1
             continue
 
         evaluations = utils.get_evaluations(report_data)
@@ -413,7 +415,9 @@ def main(
 
                 data_to_import.append(parsed_variant_data)
 
-        print(f"{i}/{nb_reports} reports have processed")
+        print(f"{i}/{nb_reports} reports have been processed")
+
+    print(f"Skipped {skipped_reports} reports")
 
     correct_data_to_import = utils.add_missing_keys(data_to_import)
 
