@@ -1,0 +1,7 @@
+jq
+openpyxl
+pandas
+panelapp
+psycopg2-binary
+requests
+sqlalchemy
