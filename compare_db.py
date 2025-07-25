@@ -80,16 +80,13 @@ def main(config_dev, config_prod):
             )
         )
 
-    lines = [
-        [col[0] for col in cols],
-        [col[1] for col in cols],
-        [col[2] for col in cols],
-        [col[3] for col in cols],
-    ]
-
     with open("db_comparison.tsv", "w") as f:
-        for line in lines:
-            f.write(f"{'\t'.join(line)}\n")
+        f.write(
+            "Column\tCommon columns\tDev unique columns\tProd unique columns\n"
+        )
+
+        for col in cols:
+            f.write(f"{'\t'.join(col)}\n")
 
 
 if __name__ == "__main__":
