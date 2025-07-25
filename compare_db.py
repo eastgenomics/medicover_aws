@@ -61,26 +61,35 @@ def main(config_dev, config_prod):
             set(prod_session.execute(select(col)).all())
         )
 
+    cols = []
+
     for col in col_to_check:
-        print(col)
         dev_values = set(
             sorted([str(value) for ele in data["dev"][col] for value in ele])
         )
         prod_values = set(
             sorted([str(value) for ele in data["prod"][col] for value in ele])
         )
-        print(
-            "common values",
-            sorted(list(dev_values.intersection(prod_values))),
+
+        cols.append(
+            (
+                col,
+                ", ".join(sorted(list(dev_values.intersection(prod_values)))),
+                ", ".join(sorted(list(dev_values.difference(prod_values)))),
+                ", ".join(sorted(list(prod_values.difference(dev_values)))),
+            )
         )
-        print(
-            "dev unique values",
-            sorted(list(dev_values.difference(prod_values))),
-        )
-        print(
-            "prod unique values",
-            sorted(list(prod_values.difference(dev_values))),
-        )
+
+    lines = [
+        [col[0] for col in cols],
+        [col[1] for col in cols],
+        [col[2] for col in cols],
+        [col[3] for col in cols],
+    ]
+
+    with open("db_comparison.tsv", "w") as f:
+        for line in lines:
+            f.write(f"{'\t'.join(line)}\n")
 
 
 if __name__ == "__main__":
