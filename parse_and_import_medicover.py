@@ -170,11 +170,18 @@ def main(
     for i, report in enumerate(reports, 1):
         report_data = utils.parse_json(report)
 
+
+# TODO - add thing to check structure of json. Will be one of:
+# [0,1,2]
+# [assembly,citations,classificationSystem,cnvs,coverageSummary,customFields,evaluators,failedRegions,finalized,geneList,geneListDetails,genePanelName,geneThresholds,lastModifiedDate,lastModifiedDateUnix,lastModifiedEmail,lastModifiedUser,patientDisorders,patientPhenotypes,reportDate,reportDateUnix,resultsSummary,sampleId,sampleState,signedOffBy,signedOffDate,signedOffDateUnix,signedOffEmail,testResult,variants,versionedSources]
+# [case_data,case_resolution_info,family_data,institution_info,report_info,signatures,technical_info,variants]
+
         if jq.compile("keys").input_value(report_data).all() != [[0, 1, 2]]:
             print(f"Skipping {report} as it doesn't have any data")
             skipped_reports += 1
             continue
 
+        # TODO - not always evaluations? Check for other structures & might just get variants directly
         evaluations = utils.get_evaluations(report_data)
 
         for j, evaluation in enumerate(evaluations, 1):
@@ -182,7 +189,7 @@ def main(
 
             if not evaluation:
                 continue
-
+            
             for variant_data in evaluation["variants"]:
                 parsed_variant_data = {}
 

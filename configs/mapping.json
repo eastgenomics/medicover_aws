@@ -1,5 +1,65 @@
 {
-    "date_last_evaluated": ".reportState.reportDate",
+    "date_last_evaluated": {
+        "struc1": ".[].reportDate",
+        "struc2": ".reportDate",
+        "struc3": ".report_info.reportDate"
+    },
+    "ref_genome": {
+        "struc1": ".[].assembly",
+        "struc2": ".assembly",
+        "struc3": ".report_info.assembly"
+    },
+    "gene_symbol": {
+        "struc1": ".[].resultSummary.reportDate",
+        "struc2": ".reportDate",
+        "struc3": ".report_info.reportDate"
+    },
+    "chromosome": {
+        "struc1": ".[].resultSummary.reportDate",
+        "struc2": ".reportDate",
+        "struc3": ".report_info.reportDate"
+    },
+    "start": {
+        "struc1": ".[].resultSummary.reportDate",
+        "struc2": ".reportDate",
+        "struc3": ".report_info.reportDate"
+    },
+    "refalt": {
+        "struc1": ".[].resultSummary.reportDate",
+        "struc2": ".reportDate",
+        "struc3": ".report_info.reportDate"
+    },
+    "hgvsc": {
+        "struc1": ".[].resultSummary.reportDate",
+        "struc2": ".reportDate",
+        "struc3": ".report_info.reportDate"
+    },
+    "comment_on_classification": {
+        "struc1": ".[].resultSummary.reportDate",
+        "struc2": ".reportDate",
+        "struc3": ".report_info.reportDate"
+    },
+    "germline_classification": {
+        "struc1": ".[].resultSummary.reportDate",
+        "struc2": ".reportDate",
+        "struc3": ".report_info.reportDate"
+    },
+    "consequence": {
+        "struc1": ".[].resultSummary.reportDate",
+        "struc2": ".reportDate",
+        "struc3": ".report_info.reportDate"
+    },
+    "code": {
+        "struc1": ".[].resultSummary.reportDate",
+        "struc2": ".reportDate",
+        "struc3": ".report_info.reportDate"
+    },
+    "reported": {
+        "struc1": ".[].resultSummary.reportDate",
+        "struc2": ".reportDate",
+        "struc3": ".report_info.reportDate"
+    },
+
     ".variant.assembly": "ref_genome",
     ".geneName": "gene_symbol",
     ".variant.chr": "chromosome",
