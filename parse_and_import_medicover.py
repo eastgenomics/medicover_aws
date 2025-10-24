@@ -171,33 +171,53 @@ def main(
         report_data = utils.parse_json(report)
 
 
-# TODO - add thing to check structure of json. Will be one of:
-# [0,1,2]
-# [assembly,citations,classificationSystem,cnvs,coverageSummary,customFields,evaluators,failedRegions,finalized,geneList,geneListDetails,genePanelName,geneThresholds,lastModifiedDate,lastModifiedDateUnix,lastModifiedEmail,lastModifiedUser,patientDisorders,patientPhenotypes,reportDate,reportDateUnix,resultsSummary,sampleId,sampleState,signedOffBy,signedOffDate,signedOffDateUnix,signedOffEmail,testResult,variants,versionedSources]
-# [case_data,case_resolution_info,family_data,institution_info,report_info,signatures,technical_info,variants]
+    # Structure of json will be one of:
+    # Standard - [0,1,2]
+    # Flat - [assembly,citations,classificationSystem,cnvs,coverageSummary,customFields,evaluators,failedRegions,finalized,geneList,geneListDetails,genePanelName,geneThresholds,lastModifiedDate,lastModifiedDateUnix,lastModifiedEmail,lastModifiedUser,patientDisorders,patientPhenotypes,reportDate,reportDateUnix,resultsSummary,sampleId,sampleState,signedOffBy,signedOffDate,signedOffDateUnix,signedOffEmail,testResult,variants,versionedSources]
+    # Nested - [case_data,case_resolution_info,family_data,institution_info,report_info,signatures,technical_info,variants]
 
-        if jq.compile("keys").input_value(report_data).all() != [[0, 1, 2]]:
+        if jq.compile("keys").input_value(report_data).all() == [[0, 1, 2]]:
+            evaluations = utils.get_evaluations(report_data)
+            startPoint=1
+            structure = 'standard'
+        elif jq.compile("keys").input_value(report_data).all() == [['assembly','citations','classificationSystem','cnvs','coverageSummary','customFields','evaluators','failedRegions','finalized','geneList','geneListDetails','genePanelName','geneThresholds','lastModifiedDate','lastModifiedDateUnix','lastModifiedEmail','lastModifiedUser','patientDisorders','patientPhenotypes','reportDate','reportDateUnix','resultsSummary','sampleId','sampleState','signedOffBy','signedOffDate','signedOffDateUnix','signedOffEmail','testResult','variants','versionedSources']]:
+            evaluations = [report_data]
+            startPoint=0
+            structure = 'flat'
+        elif jq.compile("keys").input_value(report_data).all() == [['case_data','case_resolution_info','family_data','institution_info','report_info','signatures','technical_info','variants']]:
+            evaluations = [report_data]
+            startPoint=0
+            structure = 'nested'
+        else:
             print(f"Skipping {report} as it doesn't have any data")
             skipped_reports += 1
             continue
 
-        # TODO - not always evaluations? Check for other structures & might just get variants directly
-        evaluations = utils.get_evaluations(report_data)
+        print(f"Processing report: {report}")
 
-        for j, evaluation in enumerate(evaluations, 1):
+        for j, evaluation in enumerate(evaluations, startPoint):
             report_evaluation = f"{Path(report).stem}-{j}"
 
             if not evaluation:
                 continue
-            
-            for variant_data in evaluation["variants"]:
+
+            # flatten nested structure to enable loop below
+            if structure == "nested":
+                variants = []
+                for finding_type in evaluation["variants"]:
+                    for variant in evaluation["variants"][finding_type]["snp"]:
+                        variants.append(variant)
+            else:
+                variants = evaluation["variants"]
+                        
+            for variant_data in variants:
                 parsed_variant_data = {}
 
                 # look for data in the report json
-                for key, value in mapping_json_keys.items():
-                    # hgvsc is not directly available to parse from the
-                    # medicover data
-                    # it can be obtained by combining 2 fields
+                for key, value in mapping_json_keys[structure].items():
+                    # hgvsc is not always directly available to parse
+                    # from the medicover data but can be obtained by
+                    # combining 2 fields
                     if key == "hgvsc":
                         hgvsc = []
 
@@ -220,6 +240,8 @@ def main(
                     # splitting out
                     elif key == "refalt":
                         jq_query = list(value.keys())[0]
+                        if structure == 'nested':
+                            jq_alt_query = list(value.keys())[1]
                         db_key = list(value.values())[0]
                         ref_key, alt_key = db_key
 
@@ -231,6 +253,9 @@ def main(
 
                         if "/" in jq_output:
                             ref, alt = jq_output.split("/")
+                        elif structure == 'nested':
+                            ref = jq_output
+                            alt = jq.compile(jq_alt_query).input_value(variant_data).first()
                         else:
                             ref = None
                             alt = None
@@ -247,15 +272,26 @@ def main(
                         )
 
                         if jq_output:
-                            parsed_variant_data[key] = (
-                                datetime.datetime.strptime(
-                                    jq_output, "%m/%d/%Y"
-                                ).strftime("%Y-%m-%d")
-                            )
+                            if structure == 'nested':
+                                # date is not in US format
+                                parsed_variant_data[key] = (
+                                    datetime.datetime.strptime(
+                                        jq_output, "%d/%m/%Y"
+                                    ).strftime("%Y-%m-%d")
+                                )
+                            else:
+                                parsed_variant_data[key] = (
+                                    datetime.datetime.strptime(
+                                        jq_output, "%m/%d/%Y"
+                                    ).strftime("%Y-%m-%d")
+                                )
                         else:
                             parsed_variant_data[key] = None
 
                     # handle the ACGS codes
+                    # TODO - strength is not present in the flat structure. What do?
+                    elif key == "code" and structure != 'standard':
+                        continue
                     elif key == "code":
                         jq_query = value
                         jq_output = (
@@ -304,7 +340,8 @@ def main(
                                 output = "no"
 
                             parsed_variant_data["reported"] = output
-                    elif key == ".acmgScoring.interpretedSequenceOntology":
+                    # TODO - check second part of if clause below
+                    elif "equenceOntology" in key or key == ".primary_findings.snp[].effect":
                         jq_query = key
                         jq_output = (
                             jq.compile(jq_query)
@@ -318,13 +355,18 @@ def main(
                             output = "&".join(jq_output)
 
                         parsed_variant_data[value] = output
-
                     else:
                         jq_query = key
-
+                        # TODO - work out what equivalent is for nested structure
+                        if key == ".evidenceList[]":
+                            continue
+                        elif key == ".technical_info.genomic_build":
+                            input_data = evaluation
+                        else:
+                            input_data = variant_data
                         jq_output = (
                             jq.compile(jq_query)
-                            .input_value(variant_data)
+                            .input_value(input_data)
                             .all()
                         )
 
@@ -340,7 +382,11 @@ def main(
                             == "GRCh_37_g1k,Chromosome,Homo sapiens"
                         ):
                             formatted_output = "GRCh37.p13"
-
+                        elif (
+                            formatted_output
+                            == "HG38"
+                        ):
+                            formatted_output = "GRCh38"
                         # rescue gene symbol when geneName field doesn't exist
                         elif (
                             formatted_output == "None"
