@@ -289,8 +289,10 @@ def main(
                             parsed_variant_data[key] = None
 
                     # handle the ACGS codes
-                    # TODO - strength is not present in the flat structure. What do?
-                    elif key == "code" and structure != 'standard':
+                    # no codes section in nested structure - user to read from interpretation comments
+                    elif key == "code" and structure == 'nested':
+                        print("ACGS code parsing not possible for nested structure")
+                        # TODO - put in N/As for these?
                         continue
                     elif key == "code":
                         jq_query = value
@@ -299,31 +301,45 @@ def main(
                             .input_value(variant_data)
                             .all()
                         )
-
-                        for criteria in jq_output:
-                            for code, strength in list(
-                                zip(criteria, criteria[1:])
-                            )[::2]:
-                                strength = " ".join(
-                                    [
-                                        ele.capitalize()
-                                        for ele in strength.lower()
-                                        .capitalize()
-                                        .split("_")
-                                    ]
-                                )
-
-                                if strength == "Standalone":
-                                    strength = "Stand-Alone"
-
+                        # criteria has no strength in flat structure so just get codes
+                        if structure == 'flat':
+                            for code in jq_output[0]:
                                 reformatted_code = code.split("_")[0]
-
                                 if reformatted_code.upper() in ACGS_CODES:
-                                    parsed_variant_data[
-                                        reformatted_code.lower()
-                                    ] = strength
+                                        parsed_variant_data[
+                                            reformatted_code.lower()
+                                        ] = "N/A"
+                        else:
+                            for criteria in jq_output:
+                                for code, strength in list(
+                                    zip(criteria, criteria[1:])
+                                )[::2]:
+                                    strength = " ".join(
+                                        [
+                                            ele.capitalize()
+                                            for ele in strength.lower()
+                                            .capitalize()
+                                            .split("_")
+                                        ]
+                                    )
+
+                                    if strength == "Standalone":
+                                        strength = "Stand-Alone"
+
+                                    reformatted_code = code.split("_")[0]
+
+                                    if reformatted_code.upper() in ACGS_CODES:
+                                        parsed_variant_data[
+                                            reformatted_code.lower()
+                                        ] = strength
 
                     elif key == "reported":
+                        # TODO - AT - is this ok? The nested ones include patho variants
+                        # which I would assume were reported but no field to confirm
+                        # reported status as expected in this code block
+                        if structure == 'nested':
+                            print("Reported parsing not possible for nested structure")
+                            continue
                         jq_query = value
                         jq_output = (
                             jq.compile(jq_query)
@@ -340,8 +356,7 @@ def main(
                                 output = "no"
 
                             parsed_variant_data["reported"] = output
-                    # TODO - check second part of if clause below
-                    elif "equenceOntology" in key or key == ".primary_findings.snp[].effect":
+                    elif "equenceOntology" in key or key == ".effect":
                         jq_query = key
                         jq_output = (
                             jq.compile(jq_query)

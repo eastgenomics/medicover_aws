@@ -66,10 +66,10 @@
             ".transcript",
             ".hgvc_c"
         ],
-        ".evidenceList[]": "comment_on_classification",
+        ".interpretation": "comment_on_classification",
         ".classification": "germline_classification",
         ".effect": "consequence",
-        "code": ".acmgScoring.criteria | map(.code, .strength)",
-        "reported": ".reportSection"
+        "code": "NA",
+        "reported": "NA"
     }
 }
