@@ -64,7 +64,7 @@
         },
         "hgvsc": [
             ".transcript",
-            ".hgvc_c"
+            ".hgvs_c"
         ],
         ".interpretation": "comment_on_classification",
         ".classification": "germline_classification",
