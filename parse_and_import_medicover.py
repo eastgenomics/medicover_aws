@@ -372,10 +372,7 @@ def main(
                         parsed_variant_data[value] = output
                     else:
                         jq_query = key
-                        # TODO - work out what equivalent is for nested structure
-                        if key == ".evidenceList[]":
-                            continue
-                        elif key == ".technical_info.genomic_build":
+                        if key == ".technical_info.genomic_build":
                             input_data = evaluation
                         else:
                             input_data = variant_data
