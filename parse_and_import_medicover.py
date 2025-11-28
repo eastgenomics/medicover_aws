@@ -395,10 +395,13 @@ def main(
                         ):
                             formatted_output = "GRCh37.p13"
                         elif (
-                            formatted_output
-                            == "HG38"
+                            formatted_output == "HG38"
+                            or
+                            formatted_output == "GRCh_38,Chromosome,Homo sapiens"
+                            or
+                            formatted_output == "GRCh38"
                         ):
-                            formatted_output = "GRCh38"
+                            formatted_output = "GRCh38.p14"
                         # rescue gene symbol when geneName field doesn't exist
                         elif (
                             formatted_output == "None"
@@ -429,6 +432,7 @@ def main(
 
                         parsed_variant_data[value] = formatted_output
 
+                # TODO think about this!! Newer samples are not GM numbers! Preferred condition doesn't work for Epic IDs
                 match = re.search(
                     r"(?P<gm_number>GM[0-9]{2}_[0-9]+)", report, re.IGNORECASE
                 )
