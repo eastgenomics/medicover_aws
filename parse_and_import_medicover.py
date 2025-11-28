@@ -292,7 +292,6 @@ def main(
                     # no codes section in nested structure - user to read from interpretation comments
                     elif key == "code" and structure == 'nested':
                         print("ACGS code parsing not possible for nested structure")
-                        # TODO - put in N/As for these?
                         continue
                     elif key == "code":
                         jq_query = value
@@ -339,7 +338,7 @@ def main(
                         # reported status as expected in this code block
                         if structure == 'nested':
                             print("Reported parsing not possible for nested structure")
-                            parsed_variant_data["reported"] = None
+                            parsed_variant_data["reported"] = "no"
                         else:
                             jq_query = value
                             jq_output = (
@@ -371,6 +370,17 @@ def main(
                             output = "&".join(jq_output)
 
                         parsed_variant_data[value] = output
+                    elif key == ".chr":
+                        jq_query = key
+                        jq_output = (
+                            jq.compile(jq_query)
+                            .input_value(variant_data)
+                            .first()
+                        )
+
+                        output = jq_output.lower().lstrip("chr")
+
+                        parsed_variant_data["chromosome"] = output
                     else:
                         jq_query = key
                         if key == ".technical_info.genomic_build":

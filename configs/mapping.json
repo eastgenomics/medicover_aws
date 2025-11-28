@@ -51,7 +51,7 @@
         ".technical_info.genomic_build": "ref_genome",
         ".gene": "gene_symbol",
         ".chr": "chromosome",
-        ".start": "start",
+        ".position": "start",
         "refalt": {
             ".ref": [
                 "reference_allele",
