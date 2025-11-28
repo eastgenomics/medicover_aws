@@ -339,23 +339,24 @@ def main(
                         # reported status as expected in this code block
                         if structure == 'nested':
                             print("Reported parsing not possible for nested structure")
-                            continue
-                        jq_query = value
-                        jq_output = (
-                            jq.compile(jq_query)
-                            .input_value(variant_data)
-                            .all()
-                        )
+                            parsed_variant_data["reported"] = None
+                        else:
+                            jq_query = value
+                            jq_output = (
+                                jq.compile(jq_query)
+                                .input_value(variant_data)
+                                .all()
+                            )
 
-                        if len(jq_output) == 1:
-                            output = jq_output[0]
+                            if len(jq_output) == 1:
+                                output = jq_output[0]
 
-                            if output == "REPORTING":
-                                output = "yes"
-                            else:
-                                output = "no"
+                                if output == "REPORTING":
+                                    output = "yes"
+                                else:
+                                    output = "no"
 
-                            parsed_variant_data["reported"] = output
+                                parsed_variant_data["reported"] = output
                     elif "equenceOntology" in key or key == ".effect":
                         jq_query = key
                         jq_output = (
