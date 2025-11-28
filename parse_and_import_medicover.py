@@ -308,7 +308,7 @@ def main(
                                 if reformatted_code.upper() in ACGS_CODES:
                                         parsed_variant_data[
                                             reformatted_code.lower()
-                                        ] = "N/A"
+                                        ] = None
                         else:
                             for criteria in jq_output:
                                 for code, strength in list(
