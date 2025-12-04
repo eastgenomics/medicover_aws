@@ -168,6 +168,7 @@ def main(
     nb_reports = len(reports)
 
     for i, report in enumerate(reports, 1):
+        print(f"Processing report: {report}")
         report_data = utils.parse_json(report)
 
 
@@ -193,7 +194,6 @@ def main(
             skipped_reports += 1
             continue
 
-        print(f"Processing report: {report}")
 
         for j, evaluation in enumerate(evaluations, startPoint):
             report_evaluation = f"{Path(report).stem}-{j}"
@@ -272,6 +272,7 @@ def main(
                         )
 
                         if jq_output:
+                            # TODO handle non-date values e.g. "(DRAFT)" - AT should we ignore "DRAFT" reports?
                             if structure == 'nested':
                                 # date is not in US format
                                 parsed_variant_data[key] = (
@@ -301,6 +302,7 @@ def main(
                             .all()
                         )
                         # criteria has no strength in flat structure so just get codes
+                        # TODO SOMETIMES IT DOES HAVE STRENGTH - so handle that
                         if structure == 'flat':
                             for code in jq_output[0]:
                                 reformatted_code = code.split("_")[0]
@@ -443,11 +445,9 @@ def main(
 
                         parsed_variant_data[value] = formatted_output
 
+                # TODO handle reports without underscore in gm number
                 match = re.search(
                     r"(?P<gm_number>GM[0-9]{2}_[0-9]+)|(?P<sp_number>SP[0-9]{5}R[0-9]{4})", report, re.IGNORECASE
-                )
-                match_sp = re.search(
-                    r"(?P<sp_number>SP[0-9]{5}R[0-9]{4})", report, re.IGNORECASE
                 )
                 
                 if match:
