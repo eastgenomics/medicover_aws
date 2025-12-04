@@ -443,28 +443,34 @@ def main(
 
                         parsed_variant_data[value] = formatted_output
 
-                # TODO think about this!! Newer samples are not GM numbers! Preferred condition doesn't work for Epic IDs
                 match = re.search(
-                    r"(?P<gm_number>GM[0-9]{2}_[0-9]+)", report, re.IGNORECASE
+                    r"(?P<gm_number>GM[0-9]{2}_[0-9]+)|(?P<sp_number>SP[0-9]{5}R[0-9]{4})", report, re.IGNORECASE
                 )
-
+                match_sp = re.search(
+                    r"(?P<sp_number>SP[0-9]{5}R[0-9]{4})", report, re.IGNORECASE
+                )
+                
                 if match:
                     gm_number = match.group("gm_number")
-                    gm_number = gm_number.replace("_", ".")
-                    gm_number_data = sample_as_key.get(gm_number, None)
+                    sp_number = match.group("sp_number")
+                    if gm_number:
+                        gm_number = gm_number.replace("_", ".")
+                        sample_data = sample_as_key.get(gm_number, None)
+                    else:
+                        sample_data = sample_as_key.get(sp_number, None)
 
-                    if gm_number_data:
-                        r_codes = gm_number_data.get("r_code", None)
+                    if sample_data:
+                        r_codes = sample_data.get("r_code", None)
                         panels = ", ".join(
                             [
                                 panel.strip("_")
-                                for panel in gm_number_data["Panels"]
+                                for panel in sample_data["Panels"]
                             ]
                         )
 
-                        if gm_number_data.get("panel_name"):
+                        if sample_data.get("panel_name"):
                             parsed_variant_data["preferred_condition_name"] = (
-                                ", ".join(gm_number_data["panel_name"])
+                                ", ".join(sample_data["panel_name"])
                             )
 
                         if r_codes:
