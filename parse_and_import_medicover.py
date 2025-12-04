@@ -272,7 +272,7 @@ def main(
                         )
 
                         if jq_output:
-                            # TODO handle non-date values e.g. "(DRAFT)" - AT should we ignore "DRAFT" reports?
+                            # TODO handle non-date values e.g. "(DRAFT)" - AT should we ignore "DRAFT" reports? or use last_modified date instead?
                             if structure == 'nested':
                                 # date is not in US format
                                 parsed_variant_data[key] = (
