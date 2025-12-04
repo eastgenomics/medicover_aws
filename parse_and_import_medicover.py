@@ -273,19 +273,22 @@ def main(
 
                         if jq_output:
                             # TODO handle non-date values e.g. "(DRAFT)" - AT should we ignore "DRAFT" reports? or use last_modified date instead?
-                            if structure == 'nested':
-                                # date is not in US format
-                                parsed_variant_data[key] = (
-                                    datetime.datetime.strptime(
-                                        jq_output, "%d/%m/%Y"
-                                    ).strftime("%Y-%m-%d")
-                                )
-                            else:
-                                parsed_variant_data[key] = (
-                                    datetime.datetime.strptime(
-                                        jq_output, "%m/%d/%Y"
-                                    ).strftime("%Y-%m-%d")
-                                )
+                            try:
+                                if structure == 'nested':
+                                    # date is not in US format
+                                    parsed_variant_data[key] = (
+                                        datetime.datetime.strptime(
+                                            jq_output, "%d/%m/%Y"
+                                        ).strftime("%Y-%m-%d")
+                                    )
+                                else:
+                                    parsed_variant_data[key] = (
+                                        datetime.datetime.strptime(
+                                            jq_output, "%m/%d/%Y"
+                                        ).strftime("%Y-%m-%d")
+                                    )
+                            except ValueError:
+                                parsed_variant_data[key] = None
                         else:
                             parsed_variant_data[key] = None
 
@@ -302,14 +305,17 @@ def main(
                             .all()
                         )
                         # criteria has no strength in flat structure so just get codes
-                        # TODO SOMETIMES IT DOES HAVE STRENGTH - so handle that
                         if structure == 'flat':
                             for code in jq_output[0]:
                                 reformatted_code = code.split("_")[0]
+                                try:
+                                    strength = code.split("_")[1].title()
+                                except IndexError:
+                                    strength = None
                                 if reformatted_code.upper() in ACGS_CODES:
-                                        parsed_variant_data[
-                                            reformatted_code.lower()
-                                        ] = None
+                                    parsed_variant_data[
+                                    reformatted_code.lower()
+                                    ] = strength
                         else:
                             for criteria in jq_output:
                                 for code, strength in list(
