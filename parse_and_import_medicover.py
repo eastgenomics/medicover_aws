@@ -196,7 +196,6 @@ def main(
 
 
         for j, evaluation in enumerate(evaluations, startPoint):
-            report_evaluation = f"{Path(report).stem}-{j}"
 
             if not evaluation:
                 continue
@@ -294,7 +293,6 @@ def main(
                     # handle the ACGS codes
                     # no codes section in nested structure - user to read from interpretation comments
                     elif key == "code" and structure == 'nested':
-                        print("ACGS code parsing not possible for nested structure")
                         continue
                     elif key == "code":
                         jq_query = value
@@ -340,11 +338,9 @@ def main(
                                         ] = strength
 
                     elif key == "reported":
-                        # TODO - AT - is this ok? The nested ones include patho variants
-                        # which I would assume were reported but no field to confirm
+                        # The nested ones include patho variants which I would assume were reported but no field to confirm
                         # reported status as expected in this code block
                         if structure == 'nested':
-                            print("Reported parsing not possible for nested structure")
                             parsed_variant_data["reported"] = "no"
                         else:
                             jq_query = value
@@ -460,12 +456,12 @@ def main(
                     sp_number = match.group("sp_number")
                     if gm_number:
                         gm_number = gm_number.replace("_", ".")
-                        sample_data = sample_as_key.get(gm_number, None)
+                        sample_data = sample_as_key.get(gm_number.upper(), None)
                     elif gmnumber:
                         gmnumber = gmnumber[:4] + "." + gmnumber[4:]
-                        sample_data = sample_as_key.get(gmnumber, None)
+                        sample_data = sample_as_key.get(gmnumber.upper(), None)
                     else:
-                        sample_data = sample_as_key.get(sp_number, None)
+                        sample_data = sample_as_key.get(sp_number.upper(), None)
 
                     if sample_data:
                         r_codes = sample_data.get("r_code", None)
