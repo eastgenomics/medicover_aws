@@ -272,7 +272,6 @@ def main(
                         )
 
                         if jq_output:
-                            # TODO handle non-date values e.g. "(DRAFT)" - AT should we ignore "DRAFT" reports? or use last_modified date instead?
                             try:
                                 if structure == 'nested':
                                     # date is not in US format
@@ -451,17 +450,20 @@ def main(
 
                         parsed_variant_data[value] = formatted_output
 
-                # TODO handle reports without underscore in gm number
                 match = re.search(
-                    r"(?P<gm_number>GM[0-9]{2}_[0-9]+)|(?P<sp_number>SP[0-9]{5}R[0-9]{4})", report, re.IGNORECASE
+                    r"(?P<gm_number>GM[0-9]{2}_[0-9]+)|(?P<sp_number>SP[0-9]{5}R[0-9]{4})|(?P<gmnumber>GM[0-9]{2}[0-9]+)", report, re.IGNORECASE
                 )
                 
                 if match:
                     gm_number = match.group("gm_number")
+                    gmnumber = match.group("gmnumber")
                     sp_number = match.group("sp_number")
                     if gm_number:
                         gm_number = gm_number.replace("_", ".")
                         sample_data = sample_as_key.get(gm_number, None)
+                    elif gmnumber:
+                        gmnumber = gmnumber[:4] + "." + gmnumber[4:]
+                        sample_data = sample_as_key.get(gmnumber, None)
                     else:
                         sample_data = sample_as_key.get(sp_number, None)
 
