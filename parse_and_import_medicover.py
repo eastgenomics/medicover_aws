@@ -144,7 +144,6 @@ def main(
 
             for panel in panels["Panels"]:
                 matched = False
-
                 if panel_name in panel:
                     matched = True
                     break
@@ -164,6 +163,7 @@ def main(
 
     data_to_import = []
     skipped_reports = 0
+    no_variants = 0
 
     nb_reports = len(reports)
 
@@ -196,6 +196,7 @@ def main(
 
 
         for j, evaluation in enumerate(evaluations, startPoint):
+            #report_evaluation = f"{Path(report).stem}-{j}"
 
             if not evaluation:
                 continue
@@ -205,12 +206,18 @@ def main(
                 variants = []
                 for finding_type in evaluation["variants"]:
                     for variant in evaluation["variants"][finding_type]["snp"]:
+                        variant["finding_type"] = finding_type
                         variants.append(variant)
             else:
                 variants = evaluation["variants"]
+            
+            if len(variants) == 0:
+                print(f"No variants present.")
+                no_variants += 1
                         
             for variant_data in variants:
                 parsed_variant_data = {}
+                #parsed_variant_data['report_evaluation'] = report_evaluation
 
                 # look for data in the report json
                 for key, value in mapping_json_keys[structure].items():
@@ -338,10 +345,12 @@ def main(
                                         ] = strength
 
                     elif key == "reported":
-                        # The nested ones include patho variants which I would assume were reported but no field to confirm
-                        # reported status as expected in this code block
+                        # The nested ones do not have a reported field but status can be inferred from whether the finding is primary or secondary
                         if structure == 'nested':
-                            parsed_variant_data["reported"] = "no"
+                            if variant_data.get("finding_type","") == "primary_findings":
+                                parsed_variant_data["reported"] = "yes"
+                            else:
+                                parsed_variant_data["reported"] = "no"
                         else:
                             jq_query = value
                             jq_output = (
@@ -353,7 +362,7 @@ def main(
                             if len(jq_output) == 1:
                                 output = jq_output[0]
 
-                                if output == "REPORTING":
+                                if output == "REPORTING" or output == "Reporting":
                                     output = "yes"
                                 else:
                                     output = "no"
@@ -388,6 +397,7 @@ def main(
                         jq_query = key
                         if key == ".technical_info.genomic_build":
                             input_data = evaluation
+                            print("struc3")
                         else:
                             input_data = variant_data
                         jq_output = (
@@ -428,7 +438,7 @@ def main(
                             )
 
                             formatted_output = " ".join(jq_output)
-
+                        
                         # need to keep the gene symbol uppercase
                         elif value == "gene_symbol":
                             formatted_output = " ".join(
@@ -507,7 +517,8 @@ def main(
 
         print(f"{i}/{nb_reports} reports have been processed")
 
-    print(f"Skipped {skipped_reports} reports")
+    print(f"Skipped {skipped_reports} empty reports")
+    print(f"{no_variants} reports had no variants included")
 
     correct_data_to_import = utils.add_missing_keys(data_to_import)
 
