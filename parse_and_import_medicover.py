@@ -196,7 +196,6 @@ def main(
 
 
         for j, evaluation in enumerate(evaluations, startPoint):
-            #report_evaluation = f"{Path(report).stem}-{j}"
 
             if not evaluation:
                 continue
@@ -217,7 +216,6 @@ def main(
                         
             for variant_data in variants:
                 parsed_variant_data = {}
-                #parsed_variant_data['report_evaluation'] = report_evaluation
 
                 # look for data in the report json
                 for key, value in mapping_json_keys[structure].items():
