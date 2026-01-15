@@ -524,8 +524,6 @@ def main(
     print(f"Skipped {skipped_reports} empty reports")
     print(f"{no_variants} reports had no variants included")
 
-    print("before df: ", data_to_import[0])
-
     # Remove duplicates (same sampleID, pos, ref, alt), keeping the most recent interpretation
     import_df = pd.DataFrame(data_to_import)
     import_df.sort_values(by="date_last_evaluated", inplace=True)
@@ -538,11 +536,11 @@ def main(
     ], keep="last", inplace=True)
     # drop sampleID column (not needed in final output)
     import_df.drop(columns=["sample_id"], inplace=True)
+    # replace NaN with None to avoid DB weirdness
+    import_df = import_df.replace({float('nan'): None})
 
     # Convert dataframe back to list of dicts
     data_to_import = import_df.to_dict('records')
-
-    print("after df: ", data_to_import[0])
 
     correct_data_to_import = utils.add_missing_keys(data_to_import)
 
