@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import re
 import uuid
+import pandas as pd
 
 import jq
 
@@ -465,11 +466,17 @@ def main(
                     if gm_number:
                         gm_number = gm_number.replace("_", ".")
                         sample_data = sample_as_key.get(gm_number.upper(), None)
+                        parsed_variant_data["sample_id"] = gm_number.upper()
                     elif gmnumber:
                         gmnumber = gmnumber[:4] + "." + gmnumber[4:]
                         sample_data = sample_as_key.get(gmnumber.upper(), None)
+                        parsed_variant_data["sample_id"] = gmnumber.upper()
                     else:
                         sample_data = sample_as_key.get(sp_number.upper(), None)
+                        parsed_variant_data["sample_id"] = sp_number.upper()
+                else:
+                    sample_data = None
+                    parsed_variant_data["sample_id"] = None
 
                     if sample_data:
                         r_codes = sample_data.get("r_code", None)
@@ -517,6 +524,23 @@ def main(
 
     print(f"Skipped {skipped_reports} empty reports")
     print(f"{no_variants} reports had no variants included")
+
+    # TODO - fix this as it has broken something!!
+    # Remove duplicates (same sampleID, pos, ref, alt), keeping the most recent interpretation
+    import_df = pd.DataFrame(data_to_import)
+    import_df.sort_values(by="date_last_evaluated", inplace=True)
+    import_df.drop_duplicates(subset=[
+        "sample_id",
+        "chromosome",
+        "start",
+        "reference_allele",
+        "alternate_allele",
+    ], keep="last", inplace=True)
+    # drop sampleID column (not needed in final output)
+    import_df.drop(columns=["sample_id"], inplace=True)
+
+    # Convert dataframe back to list of dicts
+    data_to_import = import_df.to_dict('records')
 
     correct_data_to_import = utils.add_missing_keys(data_to_import)
 
