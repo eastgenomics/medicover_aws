@@ -396,7 +396,6 @@ def main(
                         jq_query = key
                         if key == ".technical_info.genomic_build":
                             input_data = evaluation
-                            print("struc3")
                         else:
                             input_data = variant_data
                         jq_output = (
@@ -471,12 +470,12 @@ def main(
                         gmnumber = gmnumber[:4] + "." + gmnumber[4:]
                         sample_data = sample_as_key.get(gmnumber.upper(), None)
                         parsed_variant_data["sample_id"] = gmnumber.upper()
-                    else:
+                    elif sp_number:
                         sample_data = sample_as_key.get(sp_number.upper(), None)
                         parsed_variant_data["sample_id"] = sp_number.upper()
-                else:
-                    sample_data = None
-                    parsed_variant_data["sample_id"] = None
+                    else:
+                        sample_data = None
+                        parsed_variant_data["sample_id"] = None
 
                     if sample_data:
                         r_codes = sample_data.get("r_code", None)
@@ -525,7 +524,6 @@ def main(
     print(f"Skipped {skipped_reports} empty reports")
     print(f"{no_variants} reports had no variants included")
 
-    # TODO - fix this as it has broken something!!
     # Remove duplicates (same sampleID, pos, ref, alt), keeping the most recent interpretation
     import_df = pd.DataFrame(data_to_import)
     import_df.sort_values(by="date_last_evaluated", inplace=True)
