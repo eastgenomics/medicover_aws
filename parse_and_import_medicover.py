@@ -392,6 +392,41 @@ def main(
                         output = jq_output.lower().lstrip("chr")
 
                         parsed_variant_data["chromosome"] = output
+                    elif ".evidenceList[]" in key:
+                        jq_query = key
+                        jq_output = (
+                            jq.compile(jq_query)
+                            .input_value(variant_data)
+                            .all()
+                        )
+
+                        if jq_output:
+                            comments = []
+                            for ele in jq_output:
+                                if ele is not None:
+                                    comments.append(" ".join(ele.split()))
+
+                            formatted_output = " | ".join(comments)
+
+                            parsed_variant_data["comment_on_classification"] = formatted_output.strip()
+                        else:
+                            parsed_variant_data["comment_on_classification"] = None
+                    elif key == ".interpretation":
+                        jq_query = key
+                        jq_output = (
+                            jq.compile(jq_query)
+                            .input_value(variant_data)
+                            .first()
+                        )
+
+                        if jq_output:
+                            formatted_output = " ".join(
+                                jq_output.split()
+                            )
+                            parsed_variant_data["comment_on_classification"] = formatted_output.strip()
+                        else:
+                            parsed_variant_data["comment_on_classification"] = None
+                        
                     else:
                         jq_query = key
                         if key == ".technical_info.genomic_build":
