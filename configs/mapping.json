@@ -1,22 +1,75 @@
 {
-    "date_last_evaluated": ".reportState.reportDate",
-    ".variant.assembly": "ref_genome",
-    ".geneName": "gene_symbol",
-    ".variant.chr": "chromosome",
-    ".variant.start": "start",
-    "refalt": {
-        ".variant.refAlt": [
-            "reference_allele",
-            "alternate_allele"
-        ]
+    "standard":
+    {
+        "date_last_evaluated": ".reportState.reportDate",
+        ".variant.assembly": "ref_genome",
+        ".geneName": "gene_symbol",
+        ".variant.chr": "chromosome",
+        ".variant.start": "start",
+        "refalt": {
+            ".variant.refAlt": [
+                "reference_allele",
+                "alternate_allele"
+            ]
+        },
+        "hgvsc": [
+            ".transcript.transcriptName",
+            ".transcript.cDot"
+        ],
+        ".acmgScoring.evidenceList[]": "comment_on_classification",
+        ".acmgScoring.classification": "germline_classification",
+        ".acmgScoring.interpretedSequenceOntology": "consequence",
+        "code": ".acmgScoring.criteria | map(.code, .strength)",
+        "reported": ".reportSection"
     },
-    "hgvsc": [
-        ".transcript.transcriptName",
-        ".transcript.cDot"
-    ],
-    ".acmgScoring.evidenceList[]": "comment_on_classification",
-    ".acmgScoring.classification": "germline_classification",
-    ".acmgScoring.interpretedSequenceOntology": "consequence",
-    "code": ".acmgScoring.criteria | map(.code, .strength)",
-    "reported": ".reportSection"
+    "flat":
+    {
+        "date_last_evaluated": ".reportDate",
+        ".assembly": "ref_genome",
+        ".geneName": "gene_symbol",
+        ".chr": "chromosome",
+        ".start": "start",
+        "refalt": {
+            ".refAlt": [
+                "reference_allele",
+                "alternate_allele"
+            ]
+        },
+        "hgvsc": [
+            ".transcriptName",
+            ".cDot"
+        ],
+        ".evidenceList[]": "comment_on_classification",
+        ".classification": "germline_classification",
+        ".sequenceOntology": "consequence",
+        "code": ".criteria",
+        "reported": ".reportSection"
+    },
+    "nested":
+    {
+        "date_last_evaluated": ".report_info.report_date",
+        ".technical_info.genomic_build": "ref_genome",
+        ".gene": "gene_symbol",
+        ".chr": "chromosome",
+        ".position": "start",
+        "refalt": {
+            ".ref": [
+                "reference_allele",
+                "alternate_allele"
+            ],
+            ".alt": [
+                "alternate_allele",
+                "reference_allele"
+            ]
+        },
+        "hgvsc": [
+            ".transcript",
+            ".hgvs_c"
+        ],
+        ".interpretation": "comment_on_classification",
+        ".classification": "germline_classification",
+        ".effect": "consequence",
+        "code": "NA",
+        "reported": "NA"
+    }
 }

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import re
 import uuid
+import pandas as pd
 
 import jq
 
@@ -144,7 +145,6 @@ def main(
 
             for panel in panels["Panels"]:
                 matched = False
-
                 if panel_name in panel:
                     matched = True
                     break
@@ -164,33 +164,65 @@ def main(
 
     data_to_import = []
     skipped_reports = 0
+    no_variants = 0
 
     nb_reports = len(reports)
 
     for i, report in enumerate(reports, 1):
+        print(f"Processing report: {report}")
         report_data = utils.parse_json(report)
 
-        if jq.compile("keys").input_value(report_data).all() != [[0, 1, 2]]:
+
+    # Structure of json will be one of:
+    # Standard - [0,1,2]
+    # Flat - [assembly,citations,classificationSystem,cnvs,coverageSummary,customFields,evaluators,failedRegions,finalized,geneList,geneListDetails,genePanelName,geneThresholds,lastModifiedDate,lastModifiedDateUnix,lastModifiedEmail,lastModifiedUser,patientDisorders,patientPhenotypes,reportDate,reportDateUnix,resultsSummary,sampleId,sampleState,signedOffBy,signedOffDate,signedOffDateUnix,signedOffEmail,testResult,variants,versionedSources]
+    # Nested - [case_data,case_resolution_info,family_data,institution_info,report_info,signatures,technical_info,variants]
+
+        if jq.compile("keys").input_value(report_data).all() == [[0, 1, 2]]:
+            evaluations = utils.get_evaluations(report_data)
+            startPoint=1
+            structure = 'standard'
+        elif jq.compile("keys").input_value(report_data).all() == [['assembly','citations','classificationSystem','cnvs','coverageSummary','customFields','evaluators','failedRegions','finalized','geneList','geneListDetails','genePanelName','geneThresholds','lastModifiedDate','lastModifiedDateUnix','lastModifiedEmail','lastModifiedUser','patientDisorders','patientPhenotypes','reportDate','reportDateUnix','resultsSummary','sampleId','sampleState','signedOffBy','signedOffDate','signedOffDateUnix','signedOffEmail','testResult','variants','versionedSources']]:
+            evaluations = [report_data]
+            startPoint=0
+            structure = 'flat'
+        elif jq.compile("keys").input_value(report_data).all() == [['case_data','case_resolution_info','family_data','institution_info','report_info','signatures','technical_info','variants']]:
+            evaluations = [report_data]
+            startPoint=0
+            structure = 'nested'
+        else:
             print(f"Skipping {report} as it doesn't have any data")
             skipped_reports += 1
             continue
 
-        evaluations = utils.get_evaluations(report_data)
 
-        for j, evaluation in enumerate(evaluations, 1):
-            report_evaluation = f"{Path(report).stem}-{j}"
+        for j, evaluation in enumerate(evaluations, startPoint):
 
             if not evaluation:
                 continue
 
-            for variant_data in evaluation["variants"]:
+            # flatten nested structure to enable loop below
+            if structure == "nested":
+                variants = []
+                for finding_type in evaluation["variants"]:
+                    for variant in evaluation["variants"][finding_type]["snp"]:
+                        variant["finding_type"] = finding_type
+                        variants.append(variant)
+            else:
+                variants = evaluation["variants"]
+            
+            if len(variants) == 0:
+                print(f"No variants present.")
+                no_variants += 1
+                        
+            for variant_data in variants:
                 parsed_variant_data = {}
 
                 # look for data in the report json
-                for key, value in mapping_json_keys.items():
-                    # hgvsc is not directly available to parse from the
-                    # medicover data
-                    # it can be obtained by combining 2 fields
+                for key, value in mapping_json_keys[structure].items():
+                    # hgvsc is not always directly available to parse
+                    # from the medicover data but can be obtained by
+                    # combining 2 fields
                     if key == "hgvsc":
                         hgvsc = []
 
@@ -213,6 +245,8 @@ def main(
                     # splitting out
                     elif key == "refalt":
                         jq_query = list(value.keys())[0]
+                        if structure == 'nested':
+                            jq_alt_query = list(value.keys())[1]
                         db_key = list(value.values())[0]
                         ref_key, alt_key = db_key
 
@@ -224,6 +258,9 @@ def main(
 
                         if "/" in jq_output:
                             ref, alt = jq_output.split("/")
+                        elif structure == 'nested':
+                            ref = jq_output
+                            alt = jq.compile(jq_alt_query).input_value(variant_data).first()
                         else:
                             ref = None
                             alt = None
@@ -240,15 +277,29 @@ def main(
                         )
 
                         if jq_output:
-                            parsed_variant_data[key] = (
-                                datetime.datetime.strptime(
-                                    jq_output, "%m/%d/%Y"
-                                ).strftime("%Y-%m-%d")
-                            )
+                            try:
+                                if structure == 'nested':
+                                    # date is not in US format
+                                    parsed_variant_data[key] = (
+                                        datetime.datetime.strptime(
+                                            jq_output, "%d/%m/%Y"
+                                        ).strftime("%Y-%m-%d")
+                                    )
+                                else:
+                                    parsed_variant_data[key] = (
+                                        datetime.datetime.strptime(
+                                            jq_output, "%m/%d/%Y"
+                                        ).strftime("%Y-%m-%d")
+                                    )
+                            except ValueError:
+                                parsed_variant_data[key] = None
                         else:
                             parsed_variant_data[key] = None
 
                     # handle the ACGS codes
+                    # no codes section in nested structure - user to read from interpretation comments
+                    elif key == "code" and structure == 'nested':
+                        continue
                     elif key == "code":
                         jq_query = value
                         jq_output = (
@@ -256,48 +307,67 @@ def main(
                             .input_value(variant_data)
                             .all()
                         )
-
-                        for criteria in jq_output:
-                            for code, strength in list(
-                                zip(criteria, criteria[1:])
-                            )[::2]:
-                                strength = " ".join(
-                                    [
-                                        ele.capitalize()
-                                        for ele in strength.lower()
-                                        .capitalize()
-                                        .split("_")
-                                    ]
-                                )
-
-                                if strength == "Standalone":
-                                    strength = "Stand-Alone"
-
+                        # criteria has no strength in flat structure so just get codes
+                        if structure == 'flat':
+                            for code in jq_output[0]:
                                 reformatted_code = code.split("_")[0]
-
+                                try:
+                                    strength = code.split("_")[1].title()
+                                except IndexError:
+                                    strength = None
                                 if reformatted_code.upper() in ACGS_CODES:
                                     parsed_variant_data[
-                                        reformatted_code.lower()
+                                    reformatted_code.lower()
                                     ] = strength
+                        else:
+                            for criteria in jq_output:
+                                for code, strength in list(
+                                    zip(criteria, criteria[1:])
+                                )[::2]:
+                                    strength = " ".join(
+                                        [
+                                            ele.capitalize()
+                                            for ele in strength.lower()
+                                            .capitalize()
+                                            .split("_")
+                                        ]
+                                    )
+
+                                    if strength == "Standalone":
+                                        strength = "Stand-Alone"
+
+                                    reformatted_code = code.split("_")[0]
+
+                                    if reformatted_code.upper() in ACGS_CODES:
+                                        parsed_variant_data[
+                                            reformatted_code.lower()
+                                        ] = strength
 
                     elif key == "reported":
-                        jq_query = value
-                        jq_output = (
-                            jq.compile(jq_query)
-                            .input_value(variant_data)
-                            .all()
-                        )
-
-                        if len(jq_output) == 1:
-                            output = jq_output[0]
-
-                            if output == "REPORTING":
-                                output = "yes"
+                        # The nested ones do not have a reported field but status can be inferred from whether the finding is primary or secondary
+                        if structure == 'nested':
+                            if variant_data.get("finding_type","") == "primary_findings":
+                                parsed_variant_data["reported"] = "yes"
                             else:
-                                output = "no"
+                                parsed_variant_data["reported"] = "no"
+                        else:
+                            jq_query = value
+                            jq_output = (
+                                jq.compile(jq_query)
+                                .input_value(variant_data)
+                                .all()
+                            )
 
-                            parsed_variant_data["reported"] = output
-                    elif key == ".acmgScoring.interpretedSequenceOntology":
+                            if len(jq_output) == 1:
+                                output = jq_output[0]
+
+                                if output == "REPORTING" or output == "Reporting":
+                                    output = "yes"
+                                else:
+                                    output = "no"
+
+                                parsed_variant_data["reported"] = output
+                    elif "equenceOntology" in key or key == ".effect":
                         jq_query = key
                         jq_output = (
                             jq.compile(jq_query)
@@ -311,13 +381,61 @@ def main(
                             output = "&".join(jq_output)
 
                         parsed_variant_data[value] = output
-
-                    else:
+                    elif key == ".chr":
                         jq_query = key
-
                         jq_output = (
                             jq.compile(jq_query)
                             .input_value(variant_data)
+                            .first()
+                        )
+
+                        output = jq_output.lower().lstrip("chr")
+
+                        parsed_variant_data["chromosome"] = output
+                    elif ".evidenceList[]" in key:
+                        jq_query = key
+                        jq_output = (
+                            jq.compile(jq_query)
+                            .input_value(variant_data)
+                            .all()
+                        )
+
+                        if jq_output:
+                            comments = []
+                            for ele in jq_output:
+                                if ele is not None:
+                                    comments.append(" ".join(ele.split()))
+
+                            formatted_output = " | ".join(comments)
+
+                            parsed_variant_data["comment_on_classification"] = formatted_output.strip()
+                        else:
+                            parsed_variant_data["comment_on_classification"] = None
+                    elif key == ".interpretation":
+                        jq_query = key
+                        jq_output = (
+                            jq.compile(jq_query)
+                            .input_value(variant_data)
+                            .first()
+                        )
+
+                        if jq_output:
+                            formatted_output = " ".join(
+                                jq_output.split()
+                            )
+                            parsed_variant_data["comment_on_classification"] = formatted_output.strip()
+                        else:
+                            parsed_variant_data["comment_on_classification"] = None
+                        
+                    else:
+                        jq_query = key
+                        if key == ".technical_info.genomic_build":
+                            input_data = evaluation
+                        else:
+                            input_data = variant_data
+                        jq_output = (
+                            jq.compile(jq_query)
+                            .input_value(input_data)
                             .all()
                         )
 
@@ -333,7 +451,14 @@ def main(
                             == "GRCh_37_g1k,Chromosome,Homo sapiens"
                         ):
                             formatted_output = "GRCh37.p13"
-
+                        elif (
+                            formatted_output == "HG38"
+                            or
+                            formatted_output == "GRCh_38,Chromosome,Homo sapiens"
+                            or
+                            formatted_output == "GRCh38"
+                        ):
+                            formatted_output = "GRCh38.p14"
                         # rescue gene symbol when geneName field doesn't exist
                         elif (
                             formatted_output == "None"
@@ -346,7 +471,7 @@ def main(
                             )
 
                             formatted_output = " ".join(jq_output)
-
+                        
                         # need to keep the gene symbol uppercase
                         elif value == "gene_symbol":
                             formatted_output = " ".join(
@@ -365,26 +490,40 @@ def main(
                         parsed_variant_data[value] = formatted_output
 
                 match = re.search(
-                    r"(?P<gm_number>GM[0-9]{2}_[0-9]+)", report, re.IGNORECASE
+                    r"(?P<gm_number>GM[0-9]{2}_[0-9]+)|(?P<sp_number>SP[0-9]{5}R[0-9]{4})|(?P<gmnumber>GM[0-9]{2}[0-9]+)", report, re.IGNORECASE
                 )
-
+                
                 if match:
                     gm_number = match.group("gm_number")
-                    gm_number = gm_number.replace("_", ".")
-                    gm_number_data = sample_as_key.get(gm_number, None)
+                    gmnumber = match.group("gmnumber")
+                    sp_number = match.group("sp_number")
+                    if gm_number:
+                        gm_number = gm_number.replace("_", ".")
+                        sample_data = sample_as_key.get(gm_number.upper(), None)
+                        parsed_variant_data["sample_id"] = gm_number.upper()
+                    elif gmnumber:
+                        gmnumber = gmnumber[:4] + "." + gmnumber[4:]
+                        sample_data = sample_as_key.get(gmnumber.upper(), None)
+                        parsed_variant_data["sample_id"] = gmnumber.upper()
+                    elif sp_number:
+                        sample_data = sample_as_key.get(sp_number.upper(), None)
+                        parsed_variant_data["sample_id"] = sp_number.upper()
+                    else:
+                        sample_data = None
+                        parsed_variant_data["sample_id"] = None
 
-                    if gm_number_data:
-                        r_codes = gm_number_data.get("r_code", None)
+                    if sample_data:
+                        r_codes = sample_data.get("r_code", None)
                         panels = ", ".join(
                             [
                                 panel.strip("_")
-                                for panel in gm_number_data["Panels"]
+                                for panel in sample_data["Panels"]
                             ]
                         )
 
-                        if gm_number_data.get("panel_name"):
+                        if sample_data.get("panel_name"):
                             parsed_variant_data["preferred_condition_name"] = (
-                                ", ".join(gm_number_data["panel_name"])
+                                ", ".join(sample_data["panel_name"])
                             )
 
                         if r_codes:
@@ -417,7 +556,26 @@ def main(
 
         print(f"{i}/{nb_reports} reports have been processed")
 
-    print(f"Skipped {skipped_reports} reports")
+    print(f"Skipped {skipped_reports} empty reports")
+    print(f"{no_variants} reports had no variants included")
+
+    # Remove duplicates (same sampleID, pos, ref, alt), keeping the most recent interpretation
+    import_df = pd.DataFrame(data_to_import)
+    import_df.sort_values(by="date_last_evaluated", inplace=True)
+    import_df.drop_duplicates(subset=[
+        "sample_id",
+        "chromosome",
+        "start",
+        "reference_allele",
+        "alternate_allele",
+    ], keep="last", inplace=True)
+    # drop sampleID column (not needed in final output)
+    import_df.drop(columns=["sample_id"], inplace=True)
+    # replace NaN with None to avoid DB weirdness
+    import_df = import_df.replace({float('nan'): None})
+
+    # Convert dataframe back to list of dicts
+    data_to_import = import_df.to_dict('records')
 
     correct_data_to_import = utils.add_missing_keys(data_to_import)
 
