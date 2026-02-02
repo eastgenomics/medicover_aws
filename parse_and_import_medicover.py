@@ -172,11 +172,10 @@ def main(
         print(f"Processing report: {report}")
         report_data = utils.parse_json(report)
 
-
-    # Structure of json will be one of:
-    # Standard - [0,1,2]
-    # Flat - [assembly,citations,classificationSystem,cnvs,coverageSummary,customFields,evaluators,failedRegions,finalized,geneList,geneListDetails,genePanelName,geneThresholds,lastModifiedDate,lastModifiedDateUnix,lastModifiedEmail,lastModifiedUser,patientDisorders,patientPhenotypes,reportDate,reportDateUnix,resultsSummary,sampleId,sampleState,signedOffBy,signedOffDate,signedOffDateUnix,signedOffEmail,testResult,variants,versionedSources]
-    # Nested - [case_data,case_resolution_info,family_data,institution_info,report_info,signatures,technical_info,variants]
+        # Structure of json will be one of:
+        # Standard - [0,1,2]
+        # Flat - [assembly,citations,classificationSystem,cnvs,coverageSummary,customFields,evaluators,failedRegions,finalized,geneList,geneListDetails,genePanelName,geneThresholds,lastModifiedDate,lastModifiedDateUnix,lastModifiedEmail,lastModifiedUser,patientDisorders,patientPhenotypes,reportDate,reportDateUnix,resultsSummary,sampleId,sampleState,signedOffBy,signedOffDate,signedOffDateUnix,signedOffEmail,testResult,variants,versionedSources]
+        # Nested - [case_data,case_resolution_info,family_data,institution_info,report_info,signatures,technical_info,variants]
 
         if jq.compile("keys").input_value(report_data).all() == [[0, 1, 2]]:
             evaluations = utils.get_evaluations(report_data)
@@ -191,7 +190,7 @@ def main(
             startPoint=0
             structure = 'nested'
         else:
-            print(f"Skipping {report} as it doesn't have any data")
+            print(f"Skipping {report} as its structure does not match expected formats.")
             skipped_reports += 1
             continue
 
@@ -500,17 +499,17 @@ def main(
                     if gm_number:
                         gm_number = gm_number.replace("_", ".")
                         sample_data = sample_as_key.get(gm_number.upper(), None)
-                        parsed_variant_data["sample_id"] = gm_number.upper()
+                        parsed_variant_data["specimen_id"] = gm_number.upper()
                     elif gmnumber:
                         gmnumber = gmnumber[:4] + "." + gmnumber[4:]
                         sample_data = sample_as_key.get(gmnumber.upper(), None)
-                        parsed_variant_data["sample_id"] = gmnumber.upper()
+                        parsed_variant_data["specimen_id"] = gmnumber.upper()
                     elif sp_number:
                         sample_data = sample_as_key.get(sp_number.upper(), None)
-                        parsed_variant_data["sample_id"] = sp_number.upper()
+                        parsed_variant_data["specimen_id"] = sp_number.upper()
                     else:
                         sample_data = None
-                        parsed_variant_data["sample_id"] = None
+                        parsed_variant_data["specimen_id"] = None
 
                     if sample_data:
                         r_codes = sample_data.get("r_code", None)
@@ -562,15 +561,17 @@ def main(
     # Remove duplicates (same sampleID, pos, ref, alt), keeping the most recent interpretation
     import_df = pd.DataFrame(data_to_import)
     import_df.sort_values(by="date_last_evaluated", inplace=True)
-    import_df.drop_duplicates(subset=[
-        "sample_id",
+    import_df.drop_duplicates(
+        subset=[
+        "specimen_id",
         "chromosome",
         "start",
         "reference_allele",
         "alternate_allele",
-    ], keep="last", inplace=True)
-    # drop sampleID column (not needed in final output)
-    import_df.drop(columns=["sample_id"], inplace=True)
+        ],
+        keep="last",
+        inplace=True
+    )
     # replace NaN with None to avoid DB weirdness
     import_df = import_df.replace({float('nan'): None})
 
