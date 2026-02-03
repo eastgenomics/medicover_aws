@@ -313,7 +313,7 @@ def main(
                                 try:
                                     strength = code.split("_")[1].title()
                                 except IndexError:
-                                    strength = None
+                                    strength = "Stand-Alone"
                                 if reformatted_code.upper() in ACGS_CODES:
                                     parsed_variant_data[
                                     reformatted_code.lower()
