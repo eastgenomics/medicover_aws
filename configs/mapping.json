@@ -28,7 +28,7 @@
         ".assembly": "ref_genome",
         ".geneName": "gene_symbol",
         ".chr": "chromosome",
-        ".start": "start",
+        ".pos": "start",
         "refalt": {
             ".refAlt": [
                 "reference_allele",

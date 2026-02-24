@@ -422,6 +422,8 @@ def main(
                             formatted_output = " ".join(
                                 jq_output.split()
                             )
+                            formatted_output = re.sub('Case:[^.]+Interpretation:', 'Case:REDACTEDInterpretation:', formatted_output)
+                            formatted_output = re.sub('Case:[^.]+Criteria:', 'Case:REDACTEDCriteria:', formatted_output)
                             parsed_variant_data["comment_on_classification"] = formatted_output.strip()
                         else:
                             parsed_variant_data["comment_on_classification"] = None
