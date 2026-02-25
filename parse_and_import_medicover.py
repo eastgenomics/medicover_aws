@@ -51,6 +51,7 @@ def main(
     write: bool,
     db_import: bool,
     dump: str = None,
+    mapping_refAlt: str = None,
 ):
     """Process Medicover reports and import data into the database.
 
@@ -74,11 +75,23 @@ def main(
         Whether to import results into the database
     dump : str, optional
         Path to previously processed data dump to bypass processing
+    mapping_refAlt : str, optional
+        Path to TSV file containing mapping of ref and alt to corrected data via variant validator
     """
 
     db_creds = utils.parse_json(config_file)
     session, meta = db.connect_to_db(db_creds)
     inca_table = meta.tables["testdirectory.inca"]
+
+    # TODO fix this
+    if mapping_refAlt:
+        mapping_refAlt_data = utils.parse_tsv(
+            mapping_refAlt, "raw_ref", "raw_alt", "corrected_ref", "corrected_alt"
+        )
+        mapping_refAlt_dict = {
+            (row["raw_ref"], row["raw_alt"]): (row["corrected_ref"], row["corrected_alt"])
+            for row in mapping_refAlt_data
+        }
 
     if dump:
         dump_data = utils.parse_json(dump)
@@ -242,6 +255,7 @@ def main(
 
                     # refalt contains the reference and alternate so it needs
                     # splitting out
+                    # TODO - need to add rescue of ref and alt using mapping_refAlt_dict here when implemented
                     elif key == "refalt":
                         jq_query = list(value.keys())[0]
                         if structure == 'nested':
@@ -388,7 +402,7 @@ def main(
                             .first()
                         )
 
-                        output = jq_output.lower().lstrip("chr")
+                        output = jq_output.upper().lstrip("CHR")
 
                         parsed_variant_data["chromosome"] = output
                     elif ".evidenceList[]" in key:
@@ -643,6 +657,11 @@ if __name__ == "__main__":
         "--dump",
         help="Dump of data to import, bypasses all the processing to do only the import",
     )
+    parser.add_argument(
+        "-mra",
+        "--mapping_refAlt",
+        help="TSV file containing mapping of ref and alt to corrected data via variant validator",
+    )
 
     args = parser.parse_args()
     main(
@@ -655,4 +674,5 @@ if __name__ == "__main__":
         args.write,
         args.db,
         args.dump,
+        args.mapping_refAlt
     )
