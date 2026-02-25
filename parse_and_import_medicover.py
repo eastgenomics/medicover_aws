@@ -305,31 +305,33 @@ def main(
                                         ).strftime("%Y-%m-%d")
                                     )
                             except ValueError:
-                                if structure == 'standard':
-                                    jq_output = (
-                                        jq.compile('.reportState.reportDateUnix')
-                                        .input_value(evaluation)
-                                        .first()
-                                    )
-                                    parsed_variant_data[key] = (
-                                        datetime.datetime.fromtimestamp(
-                                            jq_output
-                                        ).strftime('%Y-%m-%d')
-                                    )
-                                elif structure == 'flat':
-                                    jq_output = (
-                                        jq.compile('.reportDateUnix')
-                                        .input_value(evaluation)
-                                        .first()
-                                    )
-                                    parsed_variant_data[key] = (
-                                        datetime.datetime.fromtimestamp(
-                                            jq_output
-                                        ).strftime('%Y-%m-%d')
-                                    )
-                                else:
+                                try:
+                                    if structure == 'standard':
+                                        jq_output = (
+                                            jq.compile('.reportState.reportDateUnix')
+                                            .input_value(evaluation)
+                                            .first()
+                                        )
+                                        print(f"STAN: {jq_output}")
+                                        parsed_variant_data[key] = (
+                                            datetime.datetime.fromtimestamp(
+                                                jq_output
+                                            ).strftime('%Y-%m-%d')
+                                        )
+                                    elif structure == 'flat':
+                                        jq_output = (
+                                            jq.compile('.reportDateUnix')
+                                            .input_value(evaluation)
+                                            .first()
+                                        )
+                                        print(f"FLAT: {jq_output}")
+                                        parsed_variant_data[key] = (
+                                            datetime.datetime.fromtimestamp(
+                                                jq_output
+                                            ).strftime('%Y-%m-%d')
+                                        )
+                                except ValueError:
                                     parsed_variant_data[key] = None
-
                         else:
                             parsed_variant_data[key] = None
 
@@ -445,7 +447,7 @@ def main(
 
                             formatted_output = " | ".join(comments)
 
-                            formatted_output = utils.redact_freetext(formatted_output)
+                            formatted_output = utils.redact_sample_id(formatted_output)
 
                             parsed_variant_data["comment_on_classification"] = formatted_output.strip()
                         else:
@@ -462,11 +464,38 @@ def main(
                             formatted_output = " ".join(
                                 jq_output.split()
                             )
-                            formatted_output = utils.redact_freetext(formatted_output)
+                            formatted_output = utils.redact_sample_id(formatted_output)
                             parsed_variant_data["comment_on_classification"] = formatted_output.strip()
                         else:
                             parsed_variant_data["comment_on_classification"] = ''
-                        
+                    elif ".classification" in key:
+                        jq_query = key
+                        jq_output = (
+                            jq.compile(jq_query)
+                            .input_value(variant_data)
+                            .first()
+                        )
+
+                        print(f"Classification output: {jq_output}")
+
+                        # only below classifications accepted in clinvar
+                        # "Pathogenic", "Benign", "Likely benign", "Uncertain significance" and "Likely pathogenic"
+                        class_mappings = {
+                            "Pathogenic": "Pathogenic",
+                            "Likely pathogenic": "Likely pathogenic",
+                            "Uncertain significance": "Uncertain significance",
+                            "Likely benign": "Likely benign",
+                            "Benign": "Benign",
+                        }
+
+                        #if jq_output:
+                        #    formatted_output = " ".join(
+                        #        jq_output.split()
+                        #    )
+                        #    formatted_output = utils.redact_freetext(formatted_output)
+                        #    parsed_variant_data["classification_comment"] = formatted_output.strip()
+                        #else:
+                        #    parsed_variant_data["classification_comment"] = ''
                     else:
                         jq_query = key
                         if key == ".technical_info.genomic_build":
@@ -492,11 +521,7 @@ def main(
                         ):
                             formatted_output = "GRCh37.p13"
                         elif (
-                            formatted_output == "HG38"
-                            or
-                            formatted_output == "GRCh_38,Chromosome,Homo sapiens"
-                            or
-                            formatted_output == "GRCh38"
+                            formatted_output in ["HG38", "GRCh_38,Chromosome,Homo sapiens", "GRCh38"]
                         ):
                             formatted_output = "GRCh38.p14"
                         # rescue gene symbol when geneName field doesn't exist
@@ -547,7 +572,7 @@ def main(
                         parsed_variant_data["specimen_id"] = gmnumber.upper()
                     elif sp_number:
                         sample_data = sample_as_key.get(sp_number.upper(), None)
-                        parsed_variant_data["specimen_id"] = sp_number.upper()
+                        parsed_variant_data["specimen_id"] = re.sub("SP", "", sp_number.upper())
                     else:
                         sample_data = None
                         parsed_variant_data["specimen_id"] = None
