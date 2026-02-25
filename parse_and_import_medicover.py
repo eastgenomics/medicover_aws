@@ -83,6 +83,11 @@ def main(
     session, meta = db.connect_to_db(db_creds)
     inca_table = meta.tables["testdirectory.inca"]
 
+    if dump:
+        dump_data = utils.parse_json(dump)
+        db.insert_in_db(session, inca_table, dump_data)
+        exit()
+    
     # TODO fix this
     if mapping_refAlt:
         mapping_refAlt_data = utils.parse_tsv(
@@ -92,11 +97,6 @@ def main(
             (row["raw_ref"], row["raw_alt"]): (row["corrected_ref"], row["corrected_alt"])
             for row in mapping_refAlt_data
         }
-
-    if dump:
-        dump_data = utils.parse_json(dump)
-        db.insert_in_db(session, inca_table, dump_data)
-        exit()
 
     mapping_json_keys = utils.parse_json(mapping_json_keys_file)
     mapping_panels = utils.parse_xlsx(xlsx)
@@ -316,7 +316,7 @@ def main(
                                             jq_output
                                         ).strftime('%Y-%m-%d')
                                     )
-                                elif structure == 'nested':
+                                elif structure == 'flat':
                                     jq_output = (
                                         jq.compile('.reportDateUnix')
                                         .input_value(evaluation)
