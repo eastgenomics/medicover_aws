@@ -305,7 +305,31 @@ def main(
                                         ).strftime("%Y-%m-%d")
                                     )
                             except ValueError:
-                                parsed_variant_data[key] = None
+                                if structure == 'standard':
+                                    jq_output = (
+                                        jq.compile('.reportState.reportDateUnix')
+                                        .input_value(evaluation)
+                                        .first()
+                                    )
+                                    parsed_variant_data[key] = (
+                                        datetime.datetime.fromtimestamp(
+                                            jq_output
+                                        ).strftime('%Y-%m-%d')
+                                    )
+                                elif structure == 'nested':
+                                    jq_output = (
+                                        jq.compile('.reportDateUnix')
+                                        .input_value(evaluation)
+                                        .first()
+                                    )
+                                    parsed_variant_data[key] = (
+                                        datetime.datetime.fromtimestamp(
+                                            jq_output
+                                        ).strftime('%Y-%m-%d')
+                                    )
+                                else:
+                                    parsed_variant_data[key] = None
+
                         else:
                             parsed_variant_data[key] = None
 
