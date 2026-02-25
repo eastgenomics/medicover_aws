@@ -51,7 +51,7 @@ def main(
     write: bool,
     db_import: bool,
     dump: str = None,
-    mapping_refAlt: str = None,
+    corrected_refAlt: str = None,
 ):
     """Process Medicover reports and import data into the database.
 
@@ -75,7 +75,7 @@ def main(
         Whether to import results into the database
     dump : str, optional
         Path to previously processed data dump to bypass processing
-    mapping_refAlt : str, optional
+    corrected_refAlt : str, optional
         Path to TSV file containing mapping of ref and alt to corrected data via variant validator
     """
 
@@ -88,14 +88,13 @@ def main(
         db.insert_in_db(session, inca_table, dump_data)
         exit()
     
-    # TODO fix this
-    if mapping_refAlt:
-        mapping_refAlt_data = utils.parse_tsv(
-            mapping_refAlt, "raw_ref", "raw_alt", "corrected_ref", "corrected_alt"
+    if corrected_refAlt:
+        corrected_refAlt_data = utils.parse_tsv(
+            corrected_refAlt, "sample", "ref", "alt"
         )
-        mapping_refAlt_dict = {
-            (row["raw_ref"], row["raw_alt"]): (row["corrected_ref"], row["corrected_alt"])
-            for row in mapping_refAlt_data
+        corrected_refAlt_dict = {
+            row["sample"]: {"Ref": row["ref"], "Alt": row["alt"]}
+            for row in corrected_refAlt_data
         }
 
     mapping_json_keys = utils.parse_json(mapping_json_keys_file)
@@ -184,6 +183,8 @@ def main(
     for i, report in enumerate(reports, 1):
         print(f"Processing report: {report}")
         report_data = utils.parse_json(report)
+        sample_id = re.search(r"(?P<gm_number>GM[0-9]{2}_[0-9]+)|(?P<sp_number>SP[0-9]{5}R[0-9]{4})|(?P<gmnumber>GM[0-9]{2}[0-9]+)", report, re.IGNORECASE).group(0)
+        sample_id = re.sub("[._]", "", sample_id.upper())
 
         # Structure of json will be one of:
         # Standard - [0,1,2]
@@ -255,7 +256,6 @@ def main(
 
                     # refalt contains the reference and alternate so it needs
                     # splitting out
-                    # TODO - need to add rescue of ref and alt using mapping_refAlt_dict here when implemented
                     elif key == "refalt":
                         jq_query = list(value.keys())[0]
                         if structure == 'nested':
@@ -277,6 +277,11 @@ def main(
                         else:
                             ref = None
                             alt = None
+                        
+                        if ref == "-":
+                            ref = corrected_refAlt_dict[sample_id]["Ref"]
+                        if alt == "-":
+                            alt = corrected_refAlt_dict[sample_id]["Alt"]
 
                         parsed_variant_data[ref_key] = ref
                         parsed_variant_data[alt_key] = alt
@@ -296,41 +301,31 @@ def main(
                                     parsed_variant_data[key] = (
                                         datetime.datetime.strptime(
                                             jq_output, "%d/%m/%Y"
-                                        ).strftime("%Y-%m-%d")
+                                            ).strftime("%Y-%m-%d")
                                     )
                                 else:
                                     parsed_variant_data[key] = (
                                         datetime.datetime.strptime(
                                             jq_output, "%m/%d/%Y"
-                                        ).strftime("%Y-%m-%d")
+                                            ).strftime("%Y-%m-%d")
                                     )
                             except ValueError:
+                                if structure == 'standard':
+                                    value = ".reportState.reportDateUnix"
+                                elif structure == 'flat':
+                                    value = ".reportDateUnix"
                                 try:
-                                    if structure == 'standard':
-                                        jq_output = (
-                                            jq.compile('.reportState.reportDateUnix')
+                                    jq_output = (
+                                        jq.compile(value)
                                             .input_value(evaluation)
                                             .first()
-                                        )
-                                        print(f"STAN: {jq_output}")
-                                        parsed_variant_data[key] = (
-                                            datetime.datetime.fromtimestamp(
-                                                jq_output
+                                    )
+                                    parsed_variant_data[key] = (
+                                        datetime.datetime.fromtimestamp(
+                                            jq_output
                                             ).strftime('%Y-%m-%d')
                                         )
-                                    elif structure == 'flat':
-                                        jq_output = (
-                                            jq.compile('.reportDateUnix')
-                                            .input_value(evaluation)
-                                            .first()
-                                        )
-                                        print(f"FLAT: {jq_output}")
-                                        parsed_variant_data[key] = (
-                                            datetime.datetime.fromtimestamp(
-                                                jq_output
-                                            ).strftime('%Y-%m-%d')
-                                        )
-                                except ValueError:
+                                except TypeError:
                                     parsed_variant_data[key] = None
                         else:
                             parsed_variant_data[key] = None
@@ -476,26 +471,13 @@ def main(
                             .first()
                         )
 
-                        print(f"Classification output: {jq_output}")
-
-                        # only below classifications accepted in clinvar
+                        # only below classifications accepted in clinvar so need to clean up
                         # "Pathogenic", "Benign", "Likely benign", "Uncertain significance" and "Likely pathogenic"
-                        class_mappings = {
-                            "Pathogenic": "Pathogenic",
-                            "Likely pathogenic": "Likely pathogenic",
-                            "Uncertain significance": "Uncertain significance",
-                            "Likely benign": "Likely benign",
-                            "Benign": "Benign",
-                        }
+                        sanitised_classification = jq_output.capitalize().replace("_", " ")
+                        if sanitised_classification == "Vus":
+                            sanitised_classification = "Uncertain significance"
 
-                        #if jq_output:
-                        #    formatted_output = " ".join(
-                        #        jq_output.split()
-                        #    )
-                        #    formatted_output = utils.redact_freetext(formatted_output)
-                        #    parsed_variant_data["classification_comment"] = formatted_output.strip()
-                        #else:
-                        #    parsed_variant_data["classification_comment"] = ''
+                        parsed_variant_data["germline_classification"] = sanitised_classification
                     else:
                         jq_query = key
                         if key == ".technical_info.genomic_build":
@@ -708,9 +690,9 @@ if __name__ == "__main__":
         help="Dump of data to import, bypasses all the processing to do only the import",
     )
     parser.add_argument(
-        "-mra",
-        "--mapping_refAlt",
-        help="TSV file containing mapping of ref and alt to corrected data via variant validator",
+        "-cra",
+        "--corrected_refAlt",
+        help="TSV file containing corrected ref & alts via variant validator",
     )
 
     args = parser.parse_args()
@@ -724,5 +706,5 @@ if __name__ == "__main__":
         args.write,
         args.db,
         args.dump,
-        args.mapping_refAlt
+        args.corrected_refAlt
     )
