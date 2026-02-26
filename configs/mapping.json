@@ -5,7 +5,7 @@
         ".variant.assembly": "ref_genome",
         ".geneName": "gene_symbol",
         ".variant.chr": "chromosome",
-        ".variant.start": "start",
+        ".variant.start": "stop",
         "refalt": {
             ".variant.refAlt": [
                 "reference_allele",
