@@ -90,10 +90,10 @@ def main(
     
     if corrected_refAlt:
         corrected_refAlt_data = utils.parse_tsv(
-            corrected_refAlt, "sample", "ref", "alt"
+            corrected_refAlt, "hgvsc", "ref", "alt"
         )
         corrected_refAlt_dict = {
-            row["sample"]: {"Ref": row["ref"], "Alt": row["alt"]}
+            row["hgvsc"]: {"Ref": row["ref"], "Alt": row["alt"]}
             for row in corrected_refAlt_data
         }
 
@@ -279,8 +279,12 @@ def main(
                             alt = None
                         
                         if ref == "-" or alt == "-":
-                            ref = corrected_refAlt_dict[sample_id]["Ref"]
-                            alt = corrected_refAlt_dict[sample_id]["Alt"]
+                            ref = corrected_refAlt_dict[parsed_variant_data["hgvsc"]]["Ref"]
+                            alt = corrected_refAlt_dict[parsed_variant_data["hgvsc"]]["Alt"]
+                            if structure == 'standard':
+                                parsed_variant_data["start"] = jq.compile(".variant.start").input_value(variant_data).first()
+                            elif structure == 'flat':
+                                parsed_variant_data["start"] = jq.compile(".start").input_value(variant_data).first()
 
                         parsed_variant_data[ref_key] = ref
                         parsed_variant_data[alt_key] = alt
