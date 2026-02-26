@@ -278,9 +278,8 @@ def main(
                             ref = None
                             alt = None
                         
-                        if ref == "-":
+                        if ref == "-" or alt == "-":
                             ref = corrected_refAlt_dict[sample_id]["Ref"]
-                        if alt == "-":
                             alt = corrected_refAlt_dict[sample_id]["Alt"]
 
                         parsed_variant_data[ref_key] = ref
