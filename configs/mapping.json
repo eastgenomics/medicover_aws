@@ -5,17 +5,17 @@
         ".variant.assembly": "ref_genome",
         ".geneName": "gene_symbol",
         ".variant.chr": "chromosome",
-        ".variant.start": "start",
+        ".variant.stop": "start",
+        "hgvsc": [
+            ".transcript.transcriptName",
+            ".transcript.cDot"
+        ],
         "refalt": {
             ".variant.refAlt": [
                 "reference_allele",
                 "alternate_allele"
             ]
         },
-        "hgvsc": [
-            ".transcript.transcriptName",
-            ".transcript.cDot"
-        ],
         ".acmgScoring.evidenceList[]": "comment_on_classification",
         ".acmgScoring.classification": "germline_classification",
         ".acmgScoring.interpretedSequenceOntology": "consequence",
@@ -28,17 +28,17 @@
         ".assembly": "ref_genome",
         ".geneName": "gene_symbol",
         ".chr": "chromosome",
-        ".start": "start",
+        ".pos": "start",
+        "hgvsc": [
+            ".transcriptName",
+            ".cDot"
+        ],
         "refalt": {
             ".refAlt": [
                 "reference_allele",
                 "alternate_allele"
             ]
         },
-        "hgvsc": [
-            ".transcriptName",
-            ".cDot"
-        ],
         ".evidenceList[]": "comment_on_classification",
         ".classification": "germline_classification",
         ".sequenceOntology": "consequence",
@@ -52,6 +52,10 @@
         ".gene": "gene_symbol",
         ".chr": "chromosome",
         ".position": "start",
+        "hgvsc": [
+            ".transcript",
+            ".hgvs_c"
+        ],
         "refalt": {
             ".ref": [
                 "reference_allele",
@@ -62,10 +66,6 @@
                 "reference_allele"
             ]
         },
-        "hgvsc": [
-            ".transcript",
-            ".hgvs_c"
-        ],
         ".interpretation": "comment_on_classification",
         ".classification": "germline_classification",
         ".effect": "consequence",

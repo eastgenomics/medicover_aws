@@ -1,5 +1,6 @@
 import itertools
 import json
+import re
 
 import polars as pl
 
@@ -41,6 +42,28 @@ def parse_xlsx(xlsx_file: str) -> pl.DataFrame:
     df = pl.read_excel(xlsx_file)
     df = df.with_columns(Panels=pl.col("Panels").str.split(";"))
     return df
+
+
+def redact_sample_id(freetext: str) -> str:
+    """Redact SP or GM numbers from freetext fields
+
+    Parameters
+    ----------
+    freetext : str
+        The freetext to redact
+
+    Returns
+    -------
+    str
+        The redacted freetext
+    """
+
+    # Redact SP and GM numbers
+    match = re.findall(r"(GM[0-9]{2}_[0-9]+)|(SP[0-9]{5}R[0-9]{4})|(GM[0-9]{2}[0-9]+)", freetext, re.IGNORECASE)
+    ids = [i for i in list(sum(match, ())) if i != '']
+    for id in ids:
+        freetext = re.sub(id, "REDACTED", freetext)
+    return freetext
 
 
 def parse_tsv(tsv_file: str, *keys) -> list:

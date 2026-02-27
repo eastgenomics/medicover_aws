@@ -51,6 +51,7 @@ def main(
     write: bool,
     db_import: bool,
     dump: str = None,
+    corrected_refAlt: str = None,
 ):
     """Process Medicover reports and import data into the database.
 
@@ -74,6 +75,8 @@ def main(
         Whether to import results into the database
     dump : str, optional
         Path to previously processed data dump to bypass processing
+    corrected_refAlt : str, optional
+        Path to TSV file containing mapping of ref and alt to corrected data via variant validator
     """
 
     db_creds = utils.parse_json(config_file)
@@ -84,6 +87,15 @@ def main(
         dump_data = utils.parse_json(dump)
         db.insert_in_db(session, inca_table, dump_data)
         exit()
+    
+    if corrected_refAlt:
+        corrected_refAlt_data = utils.parse_tsv(
+            corrected_refAlt, "hgvsc", "ref", "alt"
+        )
+        corrected_refAlt_dict = {
+            row["hgvsc"]: {"Ref": row["ref"], "Alt": row["alt"]}
+            for row in corrected_refAlt_data
+        }
 
     mapping_json_keys = utils.parse_json(mapping_json_keys_file)
     mapping_panels = utils.parse_xlsx(xlsx)
@@ -171,6 +183,8 @@ def main(
     for i, report in enumerate(reports, 1):
         print(f"Processing report: {report}")
         report_data = utils.parse_json(report)
+        sample_id = re.search(r"(?P<gm_number>GM[0-9]{2}_[0-9]+)|(?P<sp_number>SP[0-9]{5}R[0-9]{4})|(?P<gmnumber>GM[0-9]{2}[0-9]+)", report, re.IGNORECASE).group(0)
+        sample_id = re.sub("[._]", "", sample_id.upper())
 
         # Structure of json will be one of:
         # Standard - [0,1,2]
@@ -263,6 +277,14 @@ def main(
                         else:
                             ref = None
                             alt = None
+                        
+                        if ref == "-" or alt == "-":
+                            ref = corrected_refAlt_dict[parsed_variant_data["hgvsc"]]["Ref"]
+                            alt = corrected_refAlt_dict[parsed_variant_data["hgvsc"]]["Alt"]
+                            if structure == 'standard':
+                                parsed_variant_data["start"] = jq.compile(".variant.start").input_value(variant_data).first()
+                            elif structure == 'flat':
+                                parsed_variant_data["start"] = jq.compile(".start").input_value(variant_data).first()
 
                         parsed_variant_data[ref_key] = ref
                         parsed_variant_data[alt_key] = alt
@@ -282,16 +304,32 @@ def main(
                                     parsed_variant_data[key] = (
                                         datetime.datetime.strptime(
                                             jq_output, "%d/%m/%Y"
-                                        ).strftime("%Y-%m-%d")
+                                            ).strftime("%Y-%m-%d")
                                     )
                                 else:
                                     parsed_variant_data[key] = (
                                         datetime.datetime.strptime(
                                             jq_output, "%m/%d/%Y"
-                                        ).strftime("%Y-%m-%d")
+                                            ).strftime("%Y-%m-%d")
                                     )
                             except ValueError:
-                                parsed_variant_data[key] = None
+                                if structure == 'standard':
+                                    value = ".reportState.reportDateUnix"
+                                elif structure == 'flat':
+                                    value = ".reportDateUnix"
+                                try:
+                                    jq_output = (
+                                        jq.compile(value)
+                                            .input_value(evaluation)
+                                            .first()
+                                    )
+                                    parsed_variant_data[key] = (
+                                        datetime.datetime.fromtimestamp(
+                                            jq_output
+                                            ).strftime('%Y-%m-%d')
+                                        )
+                                except TypeError:
+                                    parsed_variant_data[key] = None
                         else:
                             parsed_variant_data[key] = None
 
@@ -388,7 +426,7 @@ def main(
                             .first()
                         )
 
-                        output = jq_output.lower().lstrip("chr")
+                        output = jq_output.upper().lstrip("CHR")
 
                         parsed_variant_data["chromosome"] = output
                     elif ".evidenceList[]" in key:
@@ -407,9 +445,11 @@ def main(
 
                             formatted_output = " | ".join(comments)
 
+                            formatted_output = utils.redact_sample_id(formatted_output)
+
                             parsed_variant_data["comment_on_classification"] = formatted_output.strip()
                         else:
-                            parsed_variant_data["comment_on_classification"] = None
+                            parsed_variant_data["comment_on_classification"] = ''
                     elif key == ".interpretation":
                         jq_query = key
                         jq_output = (
@@ -422,10 +462,25 @@ def main(
                             formatted_output = " ".join(
                                 jq_output.split()
                             )
+                            formatted_output = utils.redact_sample_id(formatted_output)
                             parsed_variant_data["comment_on_classification"] = formatted_output.strip()
                         else:
-                            parsed_variant_data["comment_on_classification"] = None
-                        
+                            parsed_variant_data["comment_on_classification"] = ''
+                    elif ".classification" in key:
+                        jq_query = key
+                        jq_output = (
+                            jq.compile(jq_query)
+                            .input_value(variant_data)
+                            .first()
+                        )
+
+                        # only below classifications accepted in clinvar so need to clean up
+                        # "Pathogenic", "Benign", "Likely benign", "Uncertain significance" and "Likely pathogenic"
+                        sanitised_classification = jq_output.capitalize().replace("_", " ")
+                        if sanitised_classification == "Vus":
+                            sanitised_classification = "Uncertain significance"
+
+                        parsed_variant_data["germline_classification"] = sanitised_classification
                     else:
                         jq_query = key
                         if key == ".technical_info.genomic_build":
@@ -451,11 +506,7 @@ def main(
                         ):
                             formatted_output = "GRCh37.p13"
                         elif (
-                            formatted_output == "HG38"
-                            or
-                            formatted_output == "GRCh_38,Chromosome,Homo sapiens"
-                            or
-                            formatted_output == "GRCh38"
+                            formatted_output in ["HG38", "GRCh_38,Chromosome,Homo sapiens", "GRCh38"]
                         ):
                             formatted_output = "GRCh38.p14"
                         # rescue gene symbol when geneName field doesn't exist
@@ -506,7 +557,7 @@ def main(
                         parsed_variant_data["specimen_id"] = gmnumber.upper()
                     elif sp_number:
                         sample_data = sample_as_key.get(sp_number.upper(), None)
-                        parsed_variant_data["specimen_id"] = sp_number.upper()
+                        parsed_variant_data["specimen_id"] = re.sub("SP", "", sp_number.upper())
                     else:
                         sample_data = None
                         parsed_variant_data["specimen_id"] = None
@@ -641,6 +692,11 @@ if __name__ == "__main__":
         "--dump",
         help="Dump of data to import, bypasses all the processing to do only the import",
     )
+    parser.add_argument(
+        "-cra",
+        "--corrected_refAlt",
+        help="TSV file containing corrected ref & alts via variant validator",
+    )
 
     args = parser.parse_args()
     main(
@@ -653,4 +709,5 @@ if __name__ == "__main__":
         args.write,
         args.db,
         args.dump,
+        args.corrected_refAlt
     )
